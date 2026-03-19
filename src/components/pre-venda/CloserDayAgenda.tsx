@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCloserAvailability, type CloserSlot } from "@/hooks/useCloserAvailability";
 
 // Status que indicam reunião realizada
-const REALIZED_STATUSES = ["aconteceu", "proposta_enviada", "ganha", "perdida"];
+const REALIZED_STATUSES = ["reuniao_realizada", "proposta_enviada", "fechado", "perdido"];
 
 function getSlotColor(slot: CloserSlot): string {
   const meetingTime = new Date(slot.inicioEm);
