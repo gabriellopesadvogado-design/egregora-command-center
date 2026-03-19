@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PreVenda from "./pages/PreVenda";
+import Pipeline from "./pages/Pipeline";
 import Vendas from "./pages/Vendas";
 import Leads from "./pages/Leads";
 import Notificacoes from "./pages/Notificacoes";
