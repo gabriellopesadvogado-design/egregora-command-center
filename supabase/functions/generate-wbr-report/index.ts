@@ -6,11 +6,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Model configuration
 const AI_MODEL_DEFAULT = "gpt-4.1-mini";
 const AI_MODEL_PREMIUM = "gpt-4.1";
 
-// Probability map for forecast (same as /forecast module)
 const PROBABILITY_MAP: Record<string, number> = {
   ruim: 0.10,
   neutra: 0.25,
@@ -45,7 +43,6 @@ interface RequestPayload {
   manual_inputs: ManualInputs;
 }
 
-// Helper function
 const addDays = (date: Date, days: number) => {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -53,13 +50,11 @@ const addDays = (date: Date, days: number) => {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate OpenAI API Key
     const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openaiApiKey) {
       return new Response(
@@ -68,7 +63,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
@@ -79,16 +73,12 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    // Create admin client to verify the JWT
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Extract token and verify user
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
-      console.error("Auth error:", userError);
       return new Response(
         JSON.stringify({ error: "Unauthorized", details: userError?.message }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -96,13 +86,11 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    // Create client with user context for RLS
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Parse request body
     const payload: RequestPayload = await req.json();
     const { report_type, date_start, date_end, premium_mode, manual_inputs } = payload;
 
@@ -119,72 +107,71 @@ Deno.serve(async (req) => {
 
     // 1. Get meetings in period
     const { data: meetings, error: meetingsError } = await supabase
-      .from("meetings")
+      .from("crm_meetings")
       .select("*")
-      .gte("inicio_em", `${date_start}T00:00:00`)
-      .lte("inicio_em", `${date_end}T23:59:59`);
+      .gte("data_reuniao", `${date_start}T00:00:00`)
+      .lte("data_reuniao", `${date_end}T23:59:59`);
 
     if (meetingsError) throw meetingsError;
 
-    // 2. Get closed meetings (ganhas) in period - by fechado_em date
+    // 2. Get closed meetings (fechado) in period - by data_fechamento
     const { data: closedMeetings, error: closedError } = await supabase
-      .from("meetings")
+      .from("crm_meetings")
       .select("*")
-      .eq("status", "ganha")
-      .gte("fechado_em", `${date_start}T00:00:00`)
-      .lte("fechado_em", `${date_end}T23:59:59`);
+      .eq("status", "fechado")
+      .gte("data_fechamento", `${date_start}T00:00:00`)
+      .lte("data_fechamento", `${date_end}T23:59:59`);
 
     if (closedError) throw closedError;
 
-    // 3. Get profiles for name mapping
+    // 3. Get users for name mapping
     const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id, nome, role");
+      .from("core_users")
+      .select("id, nome, cargo");
 
     if (profilesError) throw profilesError;
 
-    // 4. Get weekly targets for the period
+    // 4. Get weekly targets
     const { data: weeklyTargets, error: weeklyError } = await supabase
-      .from("weekly_targets")
+      .from("crm_weekly_targets")
       .select("*")
-      .lte("semana_inicio", date_end)
-      .gte("semana_fim", date_start);
+      .lte("semana_inicio", date_end);
 
     if (weeklyError) throw weeklyError;
 
     // 5. Get monthly target
     const monthStart = date_start.substring(0, 7) + "-01";
     const { data: monthlyTargets, error: monthlyError } = await supabase
-      .from("monthly_targets")
+      .from("crm_monthly_targets")
       .select("*")
-      .eq("mes_ano", monthStart);
+      .eq("mes", monthStart);
 
     if (monthlyError) throw monthlyError;
 
     // 6. Get yearly target
     const year = parseInt(date_start.substring(0, 4));
     const { data: yearlyTargets, error: yearlyError } = await supabase
-      .from("yearly_targets")
+      .from("crm_yearly_targets")
       .select("*")
       .eq("ano", year);
 
     if (yearlyError) throw yearlyError;
 
-    // 7. Get pipeline: ALL meetings with status proposta_enviada (full pipeline, not just period)
+    // 7. Pipeline: ALL meetings with status proposta_enviada
     const { data: pipelineMeetings, error: pipelineError } = await supabase
-      .from("meetings")
+      .from("crm_meetings")
       .select("*")
       .eq("status", "proposta_enviada");
 
     if (pipelineError) throw pipelineError;
 
-    // 8. Get meetings with proposta_enviada in period (for proposals sent metric)
+    // 8. Proposals sent in period
     const { data: proposalsSentInPeriod, error: proposalsSentError } = await supabase
-      .from("meetings")
+      .from("crm_meetings")
       .select("*")
       .eq("status", "proposta_enviada")
-      .gte("inicio_em", `${date_start}T00:00:00`)
-      .lte("inicio_em", `${date_end}T23:59:59`);
+      .gte("data_reuniao", `${date_start}T00:00:00`)
+      .lte("data_reuniao", `${date_end}T23:59:59`);
 
     if (proposalsSentError) throw proposalsSentError;
 
@@ -196,34 +183,25 @@ Deno.serve(async (req) => {
     const getProfileName = (id: string) => profileMap.get(id)?.nome || "Desconhecido";
 
     // =====================================================
-    // CALCULATE DADOS_FIXOS (FIXED METRICS)
+    // CALCULATE DADOS_FIXOS
     // =====================================================
 
     const now = new Date();
 
     // --- 1. REUNIÕES REALIZADAS ---
     const realizadas = meetings?.filter((m) =>
-      ["aconteceu", "proposta_enviada", "ganha", "perdida"].includes(m.status)
+      ["reuniao_realizada", "proposta_enviada", "fechado", "perdido", "followup_ativo", "contrato_enviado"].includes(m.status)
     ) || [];
     const totalRealizadas = realizadas.length;
 
-    // Por origem
-    const reunioesPorOrigem: Record<string, number> = {};
-    realizadas.forEach((m) => {
-      const origem = m.fonte_lead || "outros";
-      reunioesPorOrigem[origem] = (reunioesPorOrigem[origem] || 0) + 1;
-    });
-    const reunioesOrigemArray = Object.entries(reunioesPorOrigem).map(([origem, qtd]) => ({
-      origem,
-      qtd,
-      percentual: totalRealizadas > 0 ? Math.round((qtd / totalRealizadas) * 100) : 0,
-    })).sort((a, b) => b.qtd - a.qtd);
+    // Por origem (from crm_leads via lead_id - not available in flat query, skip)
+    const reunioesOrigemArray: Array<{ origem: string; qtd: number; percentual: number }> = [];
 
     // Por closer
     const reunioesPorCloser: Record<string, number> = {};
     realizadas.forEach((m) => {
       const closerId = m.closer_id;
-      reunioesPorCloser[closerId] = (reunioesPorCloser[closerId] || 0) + 1;
+      if (closerId) reunioesPorCloser[closerId] = (reunioesPorCloser[closerId] || 0) + 1;
     });
     const reunioesCloserArray = Object.entries(reunioesPorCloser).map(([id, qtd]) => ({
       nome: getProfileName(id),
@@ -231,47 +209,35 @@ Deno.serve(async (req) => {
     })).sort((a, b) => b.qtd - a.qtd);
 
     // Meta semanal de reuniões
-    const metaReunioes = weeklyTargets?.[0]?.meta_reunioes_realizadas || null;
+    const metaReunioes = weeklyTargets?.[0]?.meta_reunioes || null;
     const percentualMetaReunioes = metaReunioes ? Math.round((totalRealizadas / metaReunioes) * 100) : 0;
 
-    // --- 2. PROPOSTAS ENVIADAS (no período) ---
+    // --- 2. PROPOSTAS ENVIADAS ---
     const propostasEnviadasNoPeriodo = proposalsSentInPeriod || [];
     const totalPropostasEnviadas = propostasEnviadasNoPeriodo.length;
 
-    // Por closer
     const propostasEnviadasPorCloser: Record<string, number> = {};
     propostasEnviadasNoPeriodo.forEach((m) => {
       const closerId = m.closer_id;
-      propostasEnviadasPorCloser[closerId] = (propostasEnviadasPorCloser[closerId] || 0) + 1;
+      if (closerId) propostasEnviadasPorCloser[closerId] = (propostasEnviadasPorCloser[closerId] || 0) + 1;
     });
     const propostasEnviadasCloserArray = Object.entries(propostasEnviadasPorCloser).map(([id, qtd]) => ({
       nome: getProfileName(id),
       qtd,
     })).sort((a, b) => b.qtd - a.qtd);
 
-    // Por origem
-    const propostasEnviadasPorOrigem: Record<string, number> = {};
-    propostasEnviadasNoPeriodo.forEach((m) => {
-      const origem = m.fonte_lead || "outros";
-      propostasEnviadasPorOrigem[origem] = (propostasEnviadasPorOrigem[origem] || 0) + 1;
-    });
-    const propostasEnviadasOrigemArray = Object.entries(propostasEnviadasPorOrigem).map(([origem, qtd]) => ({
-      origem,
-      qtd,
-    })).sort((a, b) => b.qtd - a.qtd);
+    const propostasEnviadasOrigemArray: Array<{ origem: string; qtd: number }> = [];
 
-    // --- 3. PROPOSTAS EM ABERTO (full pipeline) ---
+    // --- 3. PROPOSTAS EM ABERTO ---
     const propostasEmAberto = pipelineMeetings || [];
     const totalPropostasEmAberto = propostasEmAberto.length;
     const valorBrutoEmAberto = propostasEmAberto.reduce((sum, m) => sum + (Number(m.valor_proposta) || 0), 0);
 
-    // Por closer
     const emAbertoPorCloser: Record<string, { qtd: number; valor: number }> = {};
     propostasEmAberto.forEach((m) => {
       const closerId = m.closer_id;
-      if (!emAbertoPorCloser[closerId]) {
-        emAbertoPorCloser[closerId] = { qtd: 0, valor: 0 };
-      }
+      if (!closerId) return;
+      if (!emAbertoPorCloser[closerId]) emAbertoPorCloser[closerId] = { qtd: 0, valor: 0 };
       emAbertoPorCloser[closerId].qtd++;
       emAbertoPorCloser[closerId].valor += Number(m.valor_proposta) || 0;
     });
@@ -281,73 +247,39 @@ Deno.serve(async (req) => {
       valor: data.valor,
     })).sort((a, b) => b.valor - a.valor);
 
-    // Por origem
-    const emAbertoPorOrigem: Record<string, { qtd: number; valor: number }> = {};
-    propostasEmAberto.forEach((m) => {
-      const origem = m.fonte_lead || "outros";
-      if (!emAbertoPorOrigem[origem]) {
-        emAbertoPorOrigem[origem] = { qtd: 0, valor: 0 };
-      }
-      emAbertoPorOrigem[origem].qtd++;
-      emAbertoPorOrigem[origem].valor += Number(m.valor_proposta) || 0;
-    });
-    const emAbertoOrigemArray = Object.entries(emAbertoPorOrigem).map(([origem, data]) => ({
-      origem,
-      qtd: data.qtd,
-      valor: data.valor,
-    })).sort((a, b) => b.valor - a.valor);
+    const emAbertoOrigemArray: Array<{ origem: string; qtd: number; valor: number }> = [];
 
     // --- 4. FECHAMENTOS ---
     const fechamentosList = closedMeetings || [];
     const totalFechamentos = fechamentosList.length;
-    const valorFechadoTotal = fechamentosList.reduce((sum, m) => sum + (Number(m.valor_fechado) || 0), 0);
-    const caixaGeradoTotal = fechamentosList.reduce((sum, m) => sum + (Number(m.caixa_gerado) || 0), 0);
+    const valorFechamentoTotal = fechamentosList.reduce((sum, m) => sum + (Number(m.valor_fechamento) || 0), 0);
 
-    // Por closer
-    const fechamentosPorCloser: Record<string, { qtd: number; valor_fechado: number; caixa_gerado: number }> = {};
+    const fechamentosPorCloser: Record<string, { qtd: number; valor_fechamento: number }> = {};
     fechamentosList.forEach((m) => {
       const closerId = m.closer_id;
-      if (!fechamentosPorCloser[closerId]) {
-        fechamentosPorCloser[closerId] = { qtd: 0, valor_fechado: 0, caixa_gerado: 0 };
-      }
+      if (!closerId) return;
+      if (!fechamentosPorCloser[closerId]) fechamentosPorCloser[closerId] = { qtd: 0, valor_fechamento: 0 };
       fechamentosPorCloser[closerId].qtd++;
-      fechamentosPorCloser[closerId].valor_fechado += Number(m.valor_fechado) || 0;
-      fechamentosPorCloser[closerId].caixa_gerado += Number(m.caixa_gerado) || 0;
+      fechamentosPorCloser[closerId].valor_fechamento += Number(m.valor_fechamento) || 0;
     });
     const fechamentosCloserArray = Object.entries(fechamentosPorCloser).map(([id, data]) => ({
       nome: getProfileName(id),
       qtd: data.qtd,
-      valor_fechado: data.valor_fechado,
-      caixa_gerado: data.caixa_gerado,
-    })).sort((a, b) => b.valor_fechado - a.valor_fechado);
+      valor_fechamento: data.valor_fechamento,
+    })).sort((a, b) => b.valor_fechamento - a.valor_fechamento);
 
-    // Por origem
-    const fechamentosPorOrigem: Record<string, { qtd: number; valor_fechado: number }> = {};
-    fechamentosList.forEach((m) => {
-      const origem = m.fonte_lead || "outros";
-      if (!fechamentosPorOrigem[origem]) {
-        fechamentosPorOrigem[origem] = { qtd: 0, valor_fechado: 0 };
-      }
-      fechamentosPorOrigem[origem].qtd++;
-      fechamentosPorOrigem[origem].valor_fechado += Number(m.valor_fechado) || 0;
-    });
-    const fechamentosOrigemArray = Object.entries(fechamentosPorOrigem).map(([origem, data]) => ({
-      origem,
-      qtd: data.qtd,
-      valor_fechado: data.valor_fechado,
-    })).sort((a, b) => b.valor_fechado - a.valor_fechado);
+    const fechamentosOrigemArray: Array<{ origem: string; qtd: number; valor_fechamento: number }> = [];
 
-    // --- 5. METAS (condicionais por tipo de relatório) ---
-    const metaFaturamento = monthlyTargets?.[0]?.meta_faturamento || null;
-    const metaContratos = weeklyTargets?.[0]?.meta_fechamentos_qtd || null;
-    const percentualAtingimentoFaturamento = metaFaturamento 
-      ? Math.round((valorFechadoTotal / Number(metaFaturamento)) * 100) 
+    // --- 5. METAS ---
+    const metaValor = monthlyTargets?.[0]?.meta_valor || null;
+    const metaContratos = weeklyTargets?.[0]?.meta_fechamentos || null;
+    const percentualAtingimentoValor = metaValor 
+      ? Math.round((valorFechamentoTotal / Number(metaValor)) * 100) 
       : 0;
     const percentualAtingimentoContratos = metaContratos 
       ? Math.round((totalFechamentos / metaContratos) * 100) 
       : 0;
 
-    // Build metas_semanais ONLY for WBR_SEMANAL
     const metasSemanais = report_type === "WBR_SEMANAL" ? {
       meta_reunioes: metaReunioes,
       reunioes_realizadas: totalRealizadas,
@@ -357,17 +289,16 @@ Deno.serve(async (req) => {
       percentual_contratos: percentualAtingimentoContratos,
     } : null;
 
-    // meta_mensal: full data only for ANALISE_MENSAL, nullified for WBR_SEMANAL
     const metaMensal = report_type === "ANALISE_MENSAL" ? {
-      meta_faturamento: metaFaturamento ? Number(metaFaturamento) : null,
-      realizado: valorFechadoTotal,
-      percentual_atingimento: percentualAtingimentoFaturamento,
+      meta_valor: metaValor ? Number(metaValor) : null,
+      realizado: valorFechamentoTotal,
+      percentual_atingimento: percentualAtingimentoValor,
       meta_contratos: null as number | null,
       contratos_fechados: totalFechamentos,
       percentual_contratos: 0,
     } : {
-      meta_faturamento: null as number | null,
-      realizado: valorFechadoTotal,
+      meta_valor: null as number | null,
+      realizado: valorFechamentoTotal,
       percentual_atingimento: 0,
       meta_contratos: null as number | null,
       contratos_fechados: totalFechamentos,
@@ -376,11 +307,11 @@ Deno.serve(async (req) => {
 
     // --- 6. TEMPO MÉDIO DE FECHAMENTO ---
     let tempoMedioFechamento: number | null = null;
-    const fechamentosComDatas = fechamentosList.filter((m) => m.inicio_em && m.fechado_em);
+    const fechamentosComDatas = fechamentosList.filter((m) => m.data_reuniao && m.data_fechamento);
     if (fechamentosComDatas.length > 0) {
       const totalDias = fechamentosComDatas.reduce((sum, m) => {
-        const inicio = new Date(m.inicio_em);
-        const fechado = new Date(m.fechado_em);
+        const inicio = new Date(m.data_reuniao);
+        const fechado = new Date(m.data_fechamento);
         const dias = Math.floor((fechado.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
         return sum + dias;
       }, 0);
@@ -400,19 +331,17 @@ Deno.serve(async (req) => {
 
     propostasEmAberto.forEach((m) => {
       const valorProposta = Number(m.valor_proposta) || 0;
-      const probability = m.avaliacao_reuniao ? PROBABILITY_MAP[m.avaliacao_reuniao] || 0 : 0;
+      const probability = 0.25; // default probability
       const weightedValue = valorProposta * probability;
-      const expectedCloseDate = addDays(new Date(m.inicio_em), 30);
+      const expectedCloseDate = addDays(new Date(m.data_reuniao), 30);
 
       forecastPonderado += weightedValue;
 
-      // Forecast por período
       if (expectedCloseDate <= in14Days) forecast14Dias += weightedValue;
       if (expectedCloseDate <= in30Days) forecast30Dias += weightedValue;
       if (expectedCloseDate <= in60Days) forecast60Dias += weightedValue;
 
-      // Aging
-      const days = Math.floor((now.getTime() - new Date(m.inicio_em).getTime()) / (1000 * 60 * 60 * 24));
+      const days = Math.floor((now.getTime() - new Date(m.data_reuniao).getTime()) / (1000 * 60 * 60 * 24));
       if (days <= 5) aging.verde++;
       else if (days <= 14) aging.amarelo++;
       else aging.vermelho++;
@@ -424,58 +353,39 @@ Deno.serve(async (req) => {
 
     const reunioesPorSdr: Record<string, {
       total_agendadas: number;
-      no_shows: number;
-      ganhas: number;
-      perdidas: number;
+      fechados: number;
+      perdidos: number;
       proposta_enviada: number;
-      qualidade: { boa: number; neutra: number; ruim: number };
     }> = {};
 
-    // Process ALL meetings (not just realizadas)
     meetings?.forEach((m) => {
       const sdrId = m.sdr_id;
+      if (!sdrId) return;
       if (!reunioesPorSdr[sdrId]) {
         reunioesPorSdr[sdrId] = {
           total_agendadas: 0,
-          no_shows: 0,
-          ganhas: 0,
-          perdidas: 0,
+          fechados: 0,
+          perdidos: 0,
           proposta_enviada: 0,
-          qualidade: { boa: 0, neutra: 0, ruim: 0 },
         };
       }
 
       reunioesPorSdr[sdrId].total_agendadas++;
 
-      if (m.status === "no_show") reunioesPorSdr[sdrId].no_shows++;
-      if (m.status === "ganha") reunioesPorSdr[sdrId].ganhas++;
-      if (m.status === "perdida") reunioesPorSdr[sdrId].perdidas++;
+      if (m.status === "fechado") reunioesPorSdr[sdrId].fechados++;
+      if (m.status === "perdido") reunioesPorSdr[sdrId].perdidos++;
       if (m.status === "proposta_enviada") reunioesPorSdr[sdrId].proposta_enviada++;
-
-      const qual = m.avaliacao_reuniao as "boa" | "neutra" | "ruim" | null;
-      if (qual && reunioesPorSdr[sdrId].qualidade[qual] !== undefined) {
-        reunioesPorSdr[sdrId].qualidade[qual]++;
-      }
     });
 
-    // Convert to array with names and rates
     const sdrsArray = Object.entries(reunioesPorSdr).map(([id, data]) => {
       const total = data.total_agendadas;
-      const baseConversao = data.proposta_enviada + data.ganhas + data.perdidas;
+      const baseConversao = data.proposta_enviada + data.fechados + data.perdidos;
 
       return {
         nome: getProfileName(id),
         total_agendadas: total,
-        ganhas: data.ganhas,
-        taxa_conversao: baseConversao > 0 ? Math.round((data.ganhas / baseConversao) * 100) : 0,
-        no_shows: data.no_shows,
-        taxa_no_show: total > 0 ? Math.round((data.no_shows / total) * 100) : 0,
-        qualidade: data.qualidade,
-        percentual_qualidade: {
-          boa: total > 0 ? Math.round((data.qualidade.boa / total) * 100) : 0,
-          neutra: total > 0 ? Math.round((data.qualidade.neutra / total) * 100) : 0,
-          ruim: total > 0 ? Math.round((data.qualidade.ruim / total) * 100) : 0,
-        },
+        fechados: data.fechados,
+        taxa_conversao: baseConversao > 0 ? Math.round((data.fechados / baseConversao) * 100) : 0,
       };
     }).sort((a, b) => b.total_agendadas - a.total_agendadas);
 
@@ -484,10 +394,7 @@ Deno.serve(async (req) => {
     // =====================================================
 
     const dadosFixos = {
-      periodo: {
-        inicio: date_start,
-        fim: date_end,
-      },
+      periodo: { inicio: date_start, fim: date_end },
       reunioes: {
         total_realizadas: totalRealizadas,
         meta_reunioes: metaReunioes,
@@ -508,8 +415,7 @@ Deno.serve(async (req) => {
       },
       fechamentos: {
         total_contratos: totalFechamentos,
-        valor_fechado: valorFechadoTotal,
-        caixa_gerado: caixaGeradoTotal,
+        valor_fechamento: valorFechamentoTotal,
         por_closer: fechamentosCloserArray,
         por_origem: fechamentosOrigemArray,
       },
@@ -524,59 +430,35 @@ Deno.serve(async (req) => {
         forecast_60_dias: forecast60Dias,
         aging,
       },
-      sdrs: {
-        por_sdr: sdrsArray,
-      },
+      sdrs: { por_sdr: sdrsArray },
     };
 
     // =====================================================
     // BUILD REPORT CONTEXT FOR AI
     // =====================================================
 
-    // Meetings by status
     const meetingsByStatus: Record<string, number> = {};
-    const meetingsByQuality: Record<string, number> = { boa: 0, neutra: 0, ruim: 0 };
-    let totalNoShow = 0;
-    let totalCanceladas = 0;
-
     meetings?.forEach((m) => {
       meetingsByStatus[m.status] = (meetingsByStatus[m.status] || 0) + 1;
-      if (m.status === "no_show") totalNoShow++;
-      if (m.status === "cancelada") totalCanceladas++;
-      if (m.avaliacao_reuniao) {
-        meetingsByQuality[m.avaliacao_reuniao] = (meetingsByQuality[m.avaliacao_reuniao] || 0) + 1;
-      }
     });
 
-    // Taxa de conversão
-    const ganhas = meetingsByStatus["ganha"] || 0;
-    const perdidas = meetingsByStatus["perdida"] || 0;
+    const fechados = meetingsByStatus["fechado"] || 0;
+    const perdidos = meetingsByStatus["perdido"] || 0;
     const propostaEnviada = meetingsByStatus["proposta_enviada"] || 0;
-    const totalPropostas = propostaEnviada + ganhas + perdidas;
-    const taxaConversao = totalPropostas > 0 ? (ganhas / totalPropostas) * 100 : 0;
+    const totalPropostas = propostaEnviada + fechados + perdidos;
+    const taxaConversao = totalPropostas > 0 ? (fechados / totalPropostas) * 100 : 0;
 
-    // Taxa de no-show
     const totalMeetings = meetings?.length || 0;
-    const taxaNoShow = totalMeetings > 0 ? (totalNoShow / totalMeetings) * 100 : 0;
 
     const reportContext = {
-      periodo: {
-        inicio: date_start,
-        fim: date_end,
-        tipo: report_type,
-      },
+      periodo: { inicio: date_start, fim: date_end, tipo: report_type },
       summary_period: {
         total_meetings: totalMeetings,
         meetings_by_status: meetingsByStatus,
         reunioes_realizadas: totalRealizadas,
         fechamentos: totalFechamentos,
-        valor_fechado: valorFechadoTotal,
-        caixa_gerado: caixaGeradoTotal,
+        valor_fechamento: valorFechamentoTotal,
         taxa_conversao: Math.round(taxaConversao * 100) / 100,
-        taxa_no_show: Math.round(taxaNoShow * 100) / 100,
-        quality_distribution: meetingsByQuality,
-        total_no_show: totalNoShow,
-        total_canceladas: totalCanceladas,
       },
       breakdowns: dadosFixos,
       pipeline: {
@@ -612,34 +494,24 @@ REGRAS CRÍTICAS:
 2. Compare performance entre closers, SDRs e origens de forma qualitativa
 3. Identifique padrões e tendências
 4. BRUTO vs LÍQUIDO: 
-   - Realizado/Ganhos = valor_fechado (LÍQUIDO)
+   - Realizado/Ganhos = valor_fechamento (LÍQUIDO)
    - Pipeline/Propostas em aberto = valor_bruto_total (BRUTO)
 5. FORECAST:
-   - Probabilidades: Muito Bom (boa)=50%, Bom (neutra)=25%, Ruim=10%
+   - Use probabilidade padrão de 25% para propostas em aberto
    - Analise o aging e sugira ações para propostas vermelhas (>14 dias)
 6. LAG: Reuniões realizadas tendem a fechar nas semanas seguintes
 7. METAS POR TIPO DE RELATÓRIO:
-   - WBR Semanal: use as metas SEMANAIS (reuniões realizadas e contratos fechados da weekly_targets)
-   - Análise Mensal: use a meta MENSAL de faturamento (monthly_targets)
-7. Quando não houver dado, use null e liste em limitacoes_dos_dados
-8. Hipóteses devem ser marcadas como "[HIPÓTESE]"
-9. Seja objetivo: bullets curtos e ações executáveis (máximo 7 ações)
-
-ANÁLISE DE SDRs (OBRIGATÓRIO):
-Responda estas perguntas com base nos dados de sdrs.por_sdr:
-- Qual SDR teve mais reuniões convertidas em venda (ganhas)?
-- Compare as taxas de No Show por SDR - alta taxa pode indicar problema de qualificação do lead
-- Qual SDR agendou mais reuniões no período?
-- Analise a qualidade das reuniões por SDR (boa/neutra/ruim):
-  * SDRs com muitas reuniões "ruim" podem estar priorizando quantidade sobre qualidade
-  * SDRs com reuniões "boa" mas sem fechamentos podem indicar problema no closer
-  * Identifique padrões de qualidade e sugira ações específicas
+   - WBR Semanal: use as metas SEMANAIS
+   - Análise Mensal: use a meta MENSAL de valor
+8. Quando não houver dado, use null e liste em limitacoes_dos_dados
+9. Hipóteses devem ser marcadas como "[HIPÓTESE]"
+10. Seja objetivo: bullets curtos e ações executáveis (máximo 7 ações)
 
 FORMATO DE SAÍDA (JSON estrito):
 {
   "ata": {
-    "periodo": "string (ex: 27/01 a 02/02/2025)",
-    "resumo_executivo": "string (2-3 frases com análise qualitativa, não números)",
+    "periodo": "string",
+    "resumo_executivo": "string",
     "metricas_principais": [
       { "metrica": "string", "valor": "string", "vs_meta": "string ou null" }
     ],
@@ -647,32 +519,26 @@ FORMATO DE SAÍDA (JSON estrito):
     "pontos_de_atencao": ["string"]
   },
   "analise_gestor": {
-    "performance_geral": "string (análise qualitativa em parágrafo)",
-    "analise_por_fonte": [
-      { "fonte": "string", "insight": "string (análise qualitativa)" }
-    ],
-    "analise_por_sdr": [
-      { "nome": "string", "insight": "string (análise qualitativa sobre conversão, no-show e qualidade)" }
-    ],
+    "performance_geral": "string",
     "analise_por_closer": [
-      { "nome": "string", "insight": "string (análise qualitativa)" }
+      { "nome": "string", "insight": "string" }
     ],
-    "analise_pipeline": "string (análise do pipeline com aging E forecast)",
-    "hipoteses": ["string (marcadas com [HIPÓTESE])"],
-    "evidencias": ["string (fatos baseados nos dados)"]
+    "analise_pipeline": "string",
+    "hipoteses": ["string"],
+    "evidencias": ["string"]
   },
   "plano_de_acao": {
     "acoes": [
       {
         "id": "number",
-        "acao": "string (ação específica e executável)",
-        "responsavel_sugerido": "string (nome do closer/SDR específico ou cargo)",
-        "prazo": "string (Esta semana/Próxima semana/Este mês)",
+        "acao": "string",
+        "responsavel_sugerido": "string",
+        "prazo": "string",
         "metrica_sucesso": "string"
       }
     ]
   },
-  "limitacoes_dos_dados": ["string (dados ausentes ou incompletos)"],
+  "limitacoes_dos_dados": ["string"],
   "checks_qualidade": {
     "campos_ausentes": ["string"],
     "inconsistencias": ["string"]
@@ -737,21 +603,17 @@ Responda APENAS com JSON válido, sem markdown ou explicações adicionais.`;
     // =====================================================
 
     const { error: insertError } = await supabase
-      .from("wbr_ai_reports")
+      .from("crm_wbr_ai_reports")
       .insert({
-        report_type,
-        date_start,
-        date_end,
-        premium_mode,
-        manual_inputs_json: manual_inputs,
-        report_context_snapshot: { ...reportContext, dados_fixos: dadosFixos },
-        ai_output_json: aiOutput,
-        created_by: userId,
+        semana_inicio: date_start,
+        semana_fim: date_end,
+        conteudo_markdown: JSON.stringify(aiOutput),
+        modelo_usado: model,
+        dados_fonte: { ...reportContext, dados_fixos: dadosFixos },
       });
 
     if (insertError) {
       console.error("Failed to save report:", insertError);
-      // Don't fail the request, just log it
     }
 
     return new Response(
