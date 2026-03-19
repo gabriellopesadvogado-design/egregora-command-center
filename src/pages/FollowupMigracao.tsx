@@ -123,7 +123,7 @@ export default function FollowupMigracao() {
   const [dcMap, setDcMap] = useState<Record<string, Date>>({});
   const [allowPartial, setAllowPartial] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<{\
+  const [results, setResults] = useState<{
     results: MigrationResult[];
     totals: { total_meetings: number; total_steps_gerados: number; total_steps_ignorados: number };
   } | null>(null);

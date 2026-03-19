@@ -446,7 +446,7 @@ export default function Followup() {
                         className="border-amber-500/50 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
                         onClick={() => {
                           setRescheduleStep(step);
-                          setRescheduleCanal(step.canal);
+                          setRescheduleCanal(step.canal as "ligacao" | "whatsapp");
                           setRescheduleDate(undefined);
                           setRescheduleHorario("");
                           setRescheduleNotas("");
