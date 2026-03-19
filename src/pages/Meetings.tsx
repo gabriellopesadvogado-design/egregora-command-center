@@ -54,7 +54,7 @@ export default function Meetings() {
 
   const { data: users = [] } = useAllProfiles();
   const sdrs = users.filter((u) => u.cargo === "sdr" && u.ativo);
-  const closers = users.filter((u) => ["closer", "admin", "manager"].includes(u.cargo) && u.ativo);
+  const closers = users.filter((u) => ["closer", "admin", "gestor"].includes(u.cargo) && u.ativo);
 
   const dateRange = getDateRangeForPeriod(period);
 
