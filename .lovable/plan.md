@@ -1,41 +1,76 @@
 
 
-## Problem
+## Fix Remaining TypeScript Errors — Component Layer
 
-The root project has a minimal `package.json` (no `dev` script, no Vite) and an almost-empty `src/` folder. The full application lives under `futuro-astra-main/` and cannot be reached by the dev server.
+All errors stem from components using old field/enum names that no longer match the new `egregora-command-center` schema. The hooks layer was updated, but components still reference legacy values.
 
-## Plan
+### Root Causes & Fixes
 
-### 1. Restore root package.json
-Copy the full `package.json` from `futuro-astra-main/` to the root, keeping the Supabase connection env vars. Merge the existing `@supabase/supabase-js` dependency.
+**1. Enum type references from DB (3 files)**
+`ForecastFilters.tsx` and `ReliabilityFilters.tsx` reference `Database["public"]["Enums"]["meeting_status"]`, `avaliacao_reuniao`, `plataforma_origem` — these don't exist. The DB enum is `crm_status`. Fix: use local string type aliases (already defined in hooks).
 
-### 2. Restore root config files
-Copy these from `futuro-astra-main/` to root:
-- `vite.config.ts`
-- `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`
-- `index.html`
-- `postcss.config.js`
-- `tailwind.config.ts`
-- `eslint.config.js`
-- `components.json`
+- `src/components/forecast/ForecastFilters.tsx` — lines 26-28: replace with local types from hooks
+- `src/components/forecast/ReliabilityFilters.tsx` — lines 21-22: same fix
 
-### 3. Restore source code
-Copy from `futuro-astra-main/src/` to `src/`:
-- `main.tsx`, `App.tsx`, `App.css`, `index.css`, `vite-env.d.ts`
-- `pages/`, `components/`, `hooks/`, `lib/`, `utils/`, `assets/`, `test/`
-- Update `src/integrations/supabase/client.ts` to use the already-existing root version (which points to the connected Supabase project)
+**2. `role` → `cargo` (2 files)**
+`ForecastOverviewTab.tsx` and `ReliabilityTab.tsx` filter `u.role` but `core_users` has `cargo`.
 
-### 4. Restore public assets
-Copy `futuro-astra-main/public/` contents to `public/`.
+**3. StatusToggle — old status values (1 file)**
+`StatusToggle.tsx` uses `agendada`, `aconteceu`, `no_show`, `cancelada`, `ganha`, `perdida`. Must map to new `crm_status` enum: `reuniao_agendada`, `reuniao_realizada`, `nao_elegivel`, `perdido`, `fechado`, `proposta_enviada`, `qualificado`, etc.
 
-### 5. Update Supabase client
-Ensure `src/integrations/supabase/client.ts` and `types.ts` use the connected project's credentials (already in `.env`). The types file should reflect the new `egregora-command-center` schema (tables like `core_users`, `crm_meetings`, `crm_leads`, etc.) rather than the old project's schema.
+**4. LeadsTable + ExportLeadsCsvButton — old status Records (2 files)**
+Same old status keys in `Record<MeetingStatus, ...>`. Update keys to `crm_status` values.
 
-### 6. Verify build
-The `dev` script will now work since Vite + React are properly configured at the root.
+**5. Pipeline components — wrong Proposal fields (3 files)**
+`ProposalCard`, `PipelineColumn`, `PipelineBoard` reference `valor_proposto`, `valor_fechado`, `motivo_perda`, `closer`, `fechado_em`, `caixa_gerado`. The `crm_proposals` table has `valor` (not `valor_proposto`), and lacks `valor_fechado`/`motivo_perda`/`caixa_gerado`/`fechado_em`. Fix: map `valor` in the Proposal type, remove references to non-existent fields or add them to the type as optional enrichment.
 
-### Technical details
-- ~40 files need to be created/copied at root level
-- The Supabase types will need regeneration to match the new schema, but the app will compile and render immediately
-- Existing components reference old table names (`meetings`, `leads`, `profiles`); these will need updates in a follow-up to work with the new schema (`crm_meetings`, `crm_leads`, `core_users`)
+**6. CanceledMeetingsTable — old field names (1 file)**
+References `inicio_em` → `data_reuniao`, `fonte_lead` → `origem` (from lead), `observacao` → `notas`, `leads?.plataforma_origem` → `leads?.origem`.
+
+**7. NotificationDropdown — `enviado_em` → `created_at` (1 file)**
+
+**8. MeetingsTable — old status comparisons + field names (1 file)**
+`"aconteceu"` → `"reuniao_realizada"`, `"agendada"` → `"reuniao_agendada"`, `inicio_em` → `data_reuniao`.
+
+**9. VendasTable — old status values + field names (1 file)**
+Same pattern: old status strings and `inicio_em`/`fonte_lead`/`observacao` references.
+
+**10. Calendar.tsx — `IconLeft`/`IconRight` deprecated (1 file)**
+Newer `react-day-picker` uses different component names. Fix by updating to current API.
+
+**11. Chart.tsx — `payload`/`label` type errors (1 file)**
+Recharts tooltip type mismatch. Fix with type assertion.
+
+### Files to modify (16 total)
+
+| File | Changes |
+|------|---------|
+| `src/components/forecast/ForecastFilters.tsx` | Local type aliases, fix STATUS_OPTIONS values |
+| `src/components/forecast/ReliabilityFilters.tsx` | Local type aliases |
+| `src/components/forecast/ForecastOverviewTab.tsx` | `role` → `cargo` |
+| `src/components/forecast/ReliabilityTab.tsx` | `role` → `cargo` |
+| `src/components/pre-venda/StatusToggle.tsx` | Rewrite statusConfig with new crm_status values |
+| `src/components/pre-venda/MeetingsTable.tsx` | Old status → new, `inicio_em` → `data_reuniao` |
+| `src/components/leads/LeadsTable.tsx` | Update statusConfig keys |
+| `src/components/leads/ExportLeadsCsvButton.tsx` | Update statusLabels keys |
+| `src/components/pipeline/ProposalCard.tsx` | `valor_proposto` → `valor`, remove `valor_fechado`/`motivo_perda`/`closer` |
+| `src/components/pipeline/PipelineColumn.tsx` | `valor_proposto` → `valor` |
+| `src/components/pipeline/PipelineBoard.tsx` | Remove `valor_fechado`/`caixa_gerado`/`fechado_em`/`motivo_perda` from update calls |
+| `src/components/meetings/CanceledMeetingsTable.tsx` | `inicio_em` → `data_reuniao`, field fixes |
+| `src/components/notifications/NotificationDropdown.tsx` | `enviado_em` → `created_at` |
+| `src/components/vendas/VendasTable.tsx` | Old status/field names → new |
+| `src/components/ui/calendar.tsx` | Fix `IconLeft`/`IconRight` for newer react-day-picker |
+| `src/components/ui/chart.tsx` | Type assertion for payload/label |
+
+### Status mapping reference
+
+| Old value | New crm_status value |
+|-----------|---------------------|
+| agendada | reuniao_agendada |
+| aconteceu | reuniao_realizada |
+| proposta_enviada | proposta_enviada |
+| ganha | fechado |
+| perdida | perdido |
+| no_show | nao_elegivel |
+| cancelada | nao_elegivel |
 
