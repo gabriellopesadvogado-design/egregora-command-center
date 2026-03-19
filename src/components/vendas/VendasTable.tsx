@@ -122,7 +122,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
       });
 
       
-      if (newStatus === "aconteceu") {
+      if (newStatus === "reuniao_realizada") {
         toast.success("Reunião realizada! ✅");
       } else {
         toast.success("Status atualizado");
