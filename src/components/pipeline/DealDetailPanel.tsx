@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useUpdateMeeting, type Meeting } from "@/hooks/useMeetings";
+import { NotasAtividades } from "@/components/shared/NotasAtividades";
 import { toast } from "sonner";
 
 interface DealDetailPanelProps {
