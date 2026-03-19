@@ -50,7 +50,7 @@ export function MeetingsTable({ meetings, isLoading }: MeetingsTableProps) {
       });
 
       
-      if (newStatus === "aconteceu") {
+      if (newStatus === "reuniao_realizada") {
         triggerConfetti();
         toast.success("Reunião realizada! 🎉");
       } else {
