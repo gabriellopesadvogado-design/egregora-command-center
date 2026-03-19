@@ -818,7 +818,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
             <AlertDialogDescription>
               Tem certeza que deseja reverter o status de{" "}
               <strong>{revertMeeting?.nome_lead || revertMeeting?.leads?.nome || "este lead"}</strong>{" "}
-              de <strong>{revertMeeting?.status === "ganha" ? "Ganha" : "Perdida"}</strong> para{" "}
+              de <strong>{revertMeeting?.status === "fechado" ? "Fechado" : "Perdido"}</strong> para{" "}
               <strong>Proposta Enviada</strong>? Os valores financeiros e motivo de perda serão limpos.
             </AlertDialogDescription>
           </AlertDialogHeader>
