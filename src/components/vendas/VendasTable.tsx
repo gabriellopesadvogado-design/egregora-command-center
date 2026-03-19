@@ -208,8 +208,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
       await updateMeeting.mutateAsync({
         id: winModalMeeting.id,
         valor_fechado: valorFechado,
-        caixa_gerado: caixaGerado,
-        fechado_em: new Date().toISOString(),
+        data_fechamento: new Date().toISOString(),
       });
 
       // Invalidate followup queries

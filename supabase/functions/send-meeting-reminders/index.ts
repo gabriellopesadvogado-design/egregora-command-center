@@ -6,16 +6,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface MeetingLead {
-  nome: string;
-}
-
 interface Meeting {
   id: string;
-  inicio_em: string;
+  data_reuniao: string;
   sdr_id: string;
   closer_id: string;
-  leads: MeetingLead | MeetingLead[] | null;
+  nome_lead: string;
 }
 
 type NotificationTipo = "lembrete_sdr" | "lembrete_closer_5min" | "lembrete_closer_agora";
@@ -41,11 +37,11 @@ Deno.serve(async (req) => {
 
     // Fetch meetings in the relevant time windows
     const { data: meetings, error: meetingsError } = await supabase
-      .from("meetings")
-      .select("id, inicio_em, sdr_id, closer_id, leads(nome)")
-      .eq("status", "agendada")
-      .gte("inicio_em", nowMinus1.toISOString())
-      .lte("inicio_em", nowPlus31.toISOString());
+      .from("crm_meetings")
+      .select("id, data_reuniao, sdr_id, closer_id, nome_lead")
+      .eq("status", "reuniao_agendada")
+      .gte("data_reuniao", nowMinus1.toISOString())
+      .lte("data_reuniao", nowPlus31.toISOString());
 
     if (meetingsError) {
       throw new Error(`Error fetching meetings: ${meetingsError.message}`);
@@ -53,69 +49,73 @@ Deno.serve(async (req) => {
 
     const notificationsToCreate: {
       user_id: string;
-      meeting_id: string;
       tipo: NotificationTipo;
       titulo: string;
       mensagem: string;
+      modulo_origem: string;
+      link: string;
     }[] = [];
 
     for (const meeting of (meetings || []) as Meeting[]) {
-      const inicioEm = new Date(meeting.inicio_em);
-      const leads = meeting.leads;
-      const leadNome = Array.isArray(leads) ? leads[0]?.nome : leads?.nome || "Lead";
+      const dataReuniao = new Date(meeting.data_reuniao);
+      const leadNome = meeting.nome_lead || "Lead";
 
-      // Check SDR 30min window (29-31 min before)
-      if (inicioEm >= nowPlus29 && inicioEm <= nowPlus31) {
+      // Check SDR 30min window
+      if (dataReuniao >= nowPlus29 && dataReuniao <= nowPlus31) {
         notificationsToCreate.push({
           user_id: meeting.sdr_id,
-          meeting_id: meeting.id,
           tipo: "lembrete_sdr",
           titulo: "Reunião em 30 minutos",
           mensagem: `Sua reunião com ${leadNome} começa em 30 minutos.`,
+          modulo_origem: "crm",
+          link: `/vendas`,
         });
       }
 
-      // Check Closer 5min window (4-6 min before)
-      if (inicioEm >= nowPlus4 && inicioEm <= nowPlus6) {
+      // Check Closer 5min window
+      if (dataReuniao >= nowPlus4 && dataReuniao <= nowPlus6) {
         notificationsToCreate.push({
           user_id: meeting.closer_id,
-          meeting_id: meeting.id,
           tipo: "lembrete_closer_5min",
           titulo: "Reunião em 5 minutos",
           mensagem: `Sua reunião com ${leadNome} começa em 5 minutos. Prepare-se!`,
+          modulo_origem: "crm",
+          link: `/vendas`,
         });
       }
 
-      // Check Closer now window (-1 to +1 min)
-      if (inicioEm >= nowMinus1 && inicioEm <= nowPlus1) {
+      // Check Closer now window
+      if (dataReuniao >= nowMinus1 && dataReuniao <= nowPlus1) {
         notificationsToCreate.push({
           user_id: meeting.closer_id,
-          meeting_id: meeting.id,
           tipo: "lembrete_closer_agora",
           titulo: "Reunião começando agora!",
           mensagem: `Sua reunião com ${leadNome} está começando AGORA!`,
+          modulo_origem: "crm",
+          link: `/vendas`,
         });
       }
     }
 
-    // Filter out duplicates - check if notification already exists
     const insertedNotifications: string[] = [];
 
     for (const notif of notificationsToCreate) {
+      // Check for existing notification to avoid duplicates
       const { data: existing } = await supabase
-        .from("notifications")
+        .from("core_notifications")
         .select("id")
-        .eq("meeting_id", notif.meeting_id)
+        .eq("user_id", notif.user_id)
         .eq("tipo", notif.tipo)
+        .eq("titulo", notif.titulo)
         .single();
 
       if (!existing) {
         const { error: insertError } = await supabase
-          .from("notifications")
+          .from("core_notifications")
           .insert(notif);
 
         if (!insertError) {
-          insertedNotifications.push(`${notif.tipo} for meeting ${notif.meeting_id}`);
+          insertedNotifications.push(`${notif.tipo} for user ${notif.user_id}`);
         }
       }
     }

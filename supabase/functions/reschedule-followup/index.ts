@@ -45,26 +45,20 @@ Deno.serve(async (req) => {
     if (!meeting_id || !canal || !data_prevista) {
       return new Response(
         JSON.stringify({ error: "meeting_id, canal, and data_prevista required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!["whatsapp", "ligacao"].includes(canal)) {
       return new Response(
         JSON.stringify({ error: "Invalid canal" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Fetch meeting
     const { data: meeting, error: meetErr } = await db
-      .from("meetings")
+      .from("crm_meetings")
       .select("id, closer_id")
       .eq("id", meeting_id)
       .single();
@@ -72,10 +66,7 @@ Deno.serve(async (req) => {
     if (meetErr || !meeting) {
       return new Response(
         JSON.stringify({ error: "Meeting not found" }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -86,17 +77,14 @@ Deno.serve(async (req) => {
     if (!isAdminManager && meeting.closer_id !== userId) {
       return new Response(
         JSON.stringify({ error: "Forbidden" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Mark origin step as done if provided
     if (step_id) {
       const { data: origStep } = await db
-        .from("followup_steps")
+        .from("crm_followup_steps")
         .select("notas")
         .eq("id", step_id)
         .single();
@@ -105,10 +93,10 @@ Deno.serve(async (req) => {
         ? `${existingNotas} | Concluído via reagendamento`
         : "Concluído via reagendamento";
       await db
-        .from("followup_steps")
+        .from("crm_followup_steps")
         .update({
-          status: "feito",
-          executado_em: new Date().toISOString(),
+          status: "enviado",
+          data_execucao: new Date().toISOString(),
           notas: updatedNotas,
         })
         .eq("id", step_id);
@@ -119,15 +107,14 @@ Deno.serve(async (req) => {
     // Pause default cadence if requested
     if (pause_default !== false) {
       const { data: paused } = await db
-        .from("followup_steps")
+        .from("crm_followup_steps")
         .update({
-          status: "ignorado",
+          status: "pulado",
           notas: "Cadência padrão pausada por reagendamento manual",
         })
         .eq("meeting_id", meeting_id)
-        .eq("tipo", "padrao")
         .eq("status", "pendente")
-        .gte("data_prevista", new Date().toISOString().slice(0, 10))
+        .gte("data_programada", new Date().toISOString().slice(0, 10))
         .select("id");
 
       pausedSteps = paused?.length ?? 0;
@@ -143,15 +130,14 @@ Deno.serve(async (req) => {
     const shortId = crypto.randomUUID().slice(0, 8).toUpperCase();
 
     const { data: created, error: insErr } = await db
-      .from("followup_steps")
+      .from("crm_followup_steps")
       .insert({
         meeting_id,
-        closer_id: meeting.closer_id,
-        tipo: "manual",
-        codigo: `MANUAL-${shortId}`,
-        manual_titulo: "Reagendado pelo lead",
-        canal,
-        data_prevista,
+        responsavel_id: meeting.closer_id,
+        step_nome: `MANUAL-${shortId}`,
+        step_ordem: 999,
+        canal_entrega: canal === "whatsapp" ? "texto" : "texto",
+        data_programada: data_prevista,
         status: "pendente",
         notas: fullNotas,
       })
@@ -167,18 +153,13 @@ Deno.serve(async (req) => {
         paused_steps: pausedSteps,
         created_manual_step_id: created.id,
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("reschedule-followup error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Internal error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

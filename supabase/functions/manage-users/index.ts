@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const ALLOWED_DOMAIN = "@egregoramigration.com.br";
-const ALLOWED_ROLES = ["sdr", "closer"];
+const ALLOWED_ROLES = ["sdr", "closer", "gestor", "analista_processos"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -27,12 +27,10 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Client with user's token for auth validation
     const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Validate JWT and get user
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
     
@@ -44,11 +42,8 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub as string;
-
-    // Admin client for privileged operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if user is admin or manager
     const { data: isAdminOrManager } = await supabaseAdmin.rpc("is_admin_or_manager", {
       _user_id: userId,
     });
@@ -66,7 +61,6 @@ Deno.serve(async (req) => {
       case "create_user": {
         const { email, password, nome, role } = data;
 
-        // Validate required fields
         if (!email || !password || !nome || !role) {
           return new Response(
             JSON.stringify({ error: "Todos os campos são obrigatórios" }),
@@ -74,7 +68,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Validate email domain
         if (!email.toLowerCase().endsWith(ALLOWED_DOMAIN)) {
           return new Response(
             JSON.stringify({ error: `Apenas emails do domínio ${ALLOWED_DOMAIN} são permitidos` }),
@@ -82,7 +75,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Validate role
         if (!ALLOWED_ROLES.includes(role)) {
           return new Response(
             JSON.stringify({ error: `Função inválida. Permitidas: ${ALLOWED_ROLES.join(", ")}` }),
@@ -90,7 +82,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Validate password length
         if (password.length < 6) {
           return new Response(
             JSON.stringify({ error: "A senha deve ter no mínimo 6 caracteres" }),
@@ -98,7 +89,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Create user with admin API
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
           email,
           password,
@@ -114,24 +104,14 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Update profile with correct role
+        // Update core_users with correct cargo
         const { error: profileError } = await supabaseAdmin
-          .from("profiles")
-          .update({ nome, role })
+          .from("core_users")
+          .update({ nome, cargo: role })
           .eq("id", newUser.user.id);
 
         if (profileError) {
-          console.error("Error updating profile:", profileError);
-        }
-
-        // Update user_roles table
-        const { error: roleError } = await supabaseAdmin
-          .from("user_roles")
-          .update({ role })
-          .eq("user_id", newUser.user.id);
-
-        if (roleError) {
-          console.error("Error updating user_roles:", roleError);
+          console.error("Error updating core_users:", profileError);
         }
 
         return new Response(
@@ -157,28 +137,14 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Update profiles table
         const { error: profileError } = await supabaseAdmin
-          .from("profiles")
-          .update({ role })
+          .from("core_users")
+          .update({ cargo: role })
           .eq("id", user_id);
 
         if (profileError) {
           return new Response(
             JSON.stringify({ error: profileError.message }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        // Update user_roles table
-        const { error: roleError } = await supabaseAdmin
-          .from("user_roles")
-          .update({ role })
-          .eq("user_id", user_id);
-
-        if (roleError) {
-          return new Response(
-            JSON.stringify({ error: roleError.message }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -200,7 +166,7 @@ Deno.serve(async (req) => {
         }
 
         const { error } = await supabaseAdmin
-          .from("profiles")
+          .from("core_users")
           .update({ ativo })
           .eq("id", user_id);
 

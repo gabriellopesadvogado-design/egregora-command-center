@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Auth client to verify user
     const authClient = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -38,7 +37,6 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    // Service role client for writes
     const db = createClient(supabaseUrl, serviceRoleKey);
 
     const { meeting_id, outcome, motivo } = await req.json();
@@ -46,37 +44,28 @@ Deno.serve(async (req) => {
     if (!meeting_id || !outcome) {
       return new Response(
         JSON.stringify({ error: "meeting_id and outcome required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!["ganha", "perdida_simples", "perdida_definitiva"].includes(outcome)) {
+    if (!["fechado", "perdido", "perdido_simples"].includes(outcome)) {
       return new Response(
         JSON.stringify({ error: "Invalid outcome" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Fetch meeting
     const { data: meeting, error: meetErr } = await db
-      .from("meetings")
-      .select("id, closer_id, inicio_em")
+      .from("crm_meetings")
+      .select("id, closer_id, data_reuniao")
       .eq("id", meeting_id)
       .single();
 
     if (meetErr || !meeting) {
       return new Response(
         JSON.stringify({ error: "Meeting not found" }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -87,99 +76,111 @@ Deno.serve(async (req) => {
     if (!isAdminManager && meeting.closer_id !== userId) {
       return new Response(
         JSON.stringify({ error: "Forbidden" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     let updatedSteps = 0;
     let createdMonthlySteps = 0;
 
-    if (outcome === "ganha") {
-      // Update meeting status — trigger handles followup cleanup
+    if (outcome === "fechado") {
       const { error: upErr } = await db
-        .from("meetings")
+        .from("crm_meetings")
         .update({
-          status: "ganha",
-          fechado_em: new Date().toISOString(),
+          status: "fechado",
+          data_fechamento: new Date().toISOString(),
         })
         .eq("id", meeting_id);
       if (upErr) throw upErr;
 
-      // Count affected steps
-      const { count } = await db
-        .from("followup_steps")
-        .select("*", { count: "exact", head: true })
-        .eq("meeting_id", meeting_id)
-        .eq("status", "ignorado")
-        .not("notas", "is", null)
-        .like("notas", "Deal ganho%");
-      updatedSteps = count ?? 0;
-    } else if (outcome === "perdida_definitiva") {
-      const { error: upErr } = await db
-        .from("meetings")
+      // Cancel pending followups
+      const { data: cancelled } = await db
+        .from("crm_followup_steps")
         .update({
-          status: "perdida",
-          perda_tipo: "definitiva",
+          status: "cancelado",
+          notas: "Deal fechado — followup cancelado",
+        })
+        .eq("meeting_id", meeting_id)
+        .eq("status", "pendente")
+        .select("id");
+      updatedSteps = cancelled?.length ?? 0;
+
+    } else if (outcome === "perdido") {
+      const { error: upErr } = await db
+        .from("crm_meetings")
+        .update({
+          status: "perdido",
           motivo_perda: motivo || null,
         })
         .eq("id", meeting_id);
       if (upErr) throw upErr;
 
-      const { count } = await db
-        .from("followup_steps")
-        .select("*", { count: "exact", head: true })
-        .eq("meeting_id", meeting_id)
-        .eq("status", "ignorado");
-      updatedSteps = count ?? 0;
-    } else if (outcome === "perdida_simples") {
-      // Update meeting — trigger will close non-MEN* steps
-      const { error: upErr } = await db
-        .from("meetings")
+      // Cancel all pending followups
+      const { data: cancelled } = await db
+        .from("crm_followup_steps")
         .update({
-          status: "perdida",
-          perda_tipo: "simples",
+          status: "cancelado",
+          notas: "Deal perdido — followup cancelado",
+        })
+        .eq("meeting_id", meeting_id)
+        .eq("status", "pendente")
+        .select("id");
+      updatedSteps = cancelled?.length ?? 0;
+
+    } else if (outcome === "perdido_simples") {
+      const { error: upErr } = await db
+        .from("crm_meetings")
+        .update({
+          status: "perdido",
           motivo_perda: motivo || null,
         })
         .eq("id", meeting_id);
       if (upErr) throw upErr;
+
+      // Cancel non-monthly pending followups, keep MEN* ones
+      const { data: cancelled } = await db
+        .from("crm_followup_steps")
+        .update({
+          status: "cancelado",
+          notas: "Perdido simples — cadência curta cancelada",
+        })
+        .eq("meeting_id", meeting_id)
+        .eq("status", "pendente")
+        .not("step_nome", "like", "MEN%")
+        .select("id");
+      updatedSteps = cancelled?.length ?? 0;
 
       // Generate monthly steps if missing
-      const inicioEm = new Date(meeting.inicio_em);
-      // D0 in SP timezone — use UTC date as approximation for date calc
+      const dataReuniao = new Date(meeting.data_reuniao);
       const d0 = new Date(
-        inicioEm.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
+        dataReuniao.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
       );
 
       const monthlySteps = [
-        { codigo: "MEN1-WA", canal: "whatsapp", monthOffset: 1 },
-        { codigo: "MEN2-LIG", canal: "ligacao", monthOffset: 2 },
-        { codigo: "MEN3-WA", canal: "whatsapp", monthOffset: 3 },
-        { codigo: "MEN6-WA", canal: "whatsapp", monthOffset: 6 },
+        { step_nome: "MEN1-WA", monthOffset: 1 },
+        { step_nome: "MEN2-LIG", monthOffset: 2 },
+        { step_nome: "MEN3-WA", monthOffset: 3 },
+        { step_nome: "MEN6-WA", monthOffset: 6 },
       ];
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       for (const step of monthlySteps) {
-        const dataPrevista = new Date(d0);
-        dataPrevista.setMonth(dataPrevista.getMonth() + step.monthOffset);
-        const dpStr = dataPrevista.toISOString().slice(0, 10);
+        const dataProgramada = new Date(d0);
+        dataProgramada.setMonth(dataProgramada.getMonth() + step.monthOffset);
+        const dpStr = dataProgramada.toISOString().slice(0, 10);
 
-        if (dataPrevista >= today) {
-          const { error: insErr } = await db.from("followup_steps").upsert(
-            {
-              meeting_id,
-              closer_id: meeting.closer_id,
-              codigo: step.codigo,
-              canal: step.canal,
-              data_prevista: dpStr,
-              status: "pendente",
-            },
-            { onConflict: "meeting_id,codigo", ignoreDuplicates: true }
-          );
+        if (dataProgramada >= today) {
+          const { error: insErr } = await db.from("crm_followup_steps").insert({
+            meeting_id,
+            responsavel_id: meeting.closer_id,
+            step_nome: step.step_nome,
+            step_ordem: step.monthOffset * 10,
+            canal_entrega: "texto",
+            data_programada: dpStr,
+            status: "pendente",
+          });
           if (!insErr) createdMonthlySteps++;
         }
       }
@@ -192,18 +193,13 @@ Deno.serve(async (req) => {
         updated_steps: updatedSteps,
         created_monthly_steps: createdMonthlySteps,
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("set-deal-outcome error:", err);
     return new Response(
       JSON.stringify({ error: err.message || "Internal error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

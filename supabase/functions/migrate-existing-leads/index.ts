@@ -33,29 +33,29 @@ const todayStr = (): string => {
 };
 
 interface CadenceStep {
-  codigo: string;
+  step_nome: string;
   canal: "whatsapp" | "ligacao";
   computeDate: (dc: string, d0: string) => string;
   condition?: (dc: string, d0: string) => boolean;
 }
 
 const CADENCE: CadenceStep[] = [
-  { codigo: "POS-WA",    canal: "whatsapp", computeDate: (_dc, d0) => d0 },
-  { codigo: "CONF-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, -1), condition: (dc, d0) => diffDays(d0, dc) >= 2 },
-  { codigo: "DC-LIG",    canal: "ligacao",  computeDate: (dc) => dc },
-  { codigo: "DC-WA",     canal: "whatsapp", computeDate: (dc) => dc },
-  { codigo: "BAT1-LIG",  canal: "ligacao",  computeDate: (dc) => addDays(dc, 1) },
-  { codigo: "BAT1-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 1) },
-  { codigo: "BAT2-LIG",  canal: "ligacao",  computeDate: (dc) => addDays(dc, 2) },
-  { codigo: "BAT2-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 2) },
-  { codigo: "BAT3-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 3) },
-  { codigo: "PAD6-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 6) },
-  { codigo: "PAD10-WA",  canal: "whatsapp", computeDate: (dc) => addDays(dc, 10) },
-  { codigo: "ENC14-WA",  canal: "whatsapp", computeDate: (dc) => addDays(dc, 14) },
-  { codigo: "MEN1-WA",   canal: "whatsapp", computeDate: (_dc, d0) => addMonths(d0, 1) },
-  { codigo: "MEN2-LIG",  canal: "ligacao",  computeDate: (_dc, d0) => addMonths(d0, 2) },
-  { codigo: "MEN3-WA",   canal: "whatsapp", computeDate: (_dc, d0) => addMonths(d0, 3) },
-  { codigo: "MEN6-WA",   canal: "whatsapp", computeDate: (_dc, d0) => addMonths(d0, 6) },
+  { step_nome: "POS-WA",    canal: "whatsapp", computeDate: (_dc, d0) => d0 },
+  { step_nome: "CONF-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, -1), condition: (dc, d0) => diffDays(d0, dc) >= 2 },
+  { step_nome: "DC-LIG",    canal: "ligacao",  computeDate: (dc) => dc },
+  { step_nome: "DC-WA",     canal: "whatsapp", computeDate: (dc) => dc },
+  { step_nome: "BAT1-LIG",  canal: "ligacao",  computeDate: (dc) => addDays(dc, 1) },
+  { step_nome: "BAT1-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 1) },
+  { step_nome: "BAT2-LIG",  canal: "ligacao",  computeDate: (dc) => addDays(dc, 2) },
+  { step_nome: "BAT2-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 2) },
+  { step_nome: "BAT3-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 3) },
+  { step_nome: "PAD6-WA",   canal: "whatsapp", computeDate: (dc) => addDays(dc, 6) },
+  { step_nome: "PAD10-WA",  canal: "whatsapp", computeDate: (dc) => addDays(dc, 10) },
+  { step_nome: "ENC14-WA",  canal: "whatsapp", computeDate: (dc) => addDays(dc, 14) },
+  { step_nome: "MEN1-WA",   canal: "whatsapp", computeDate: (_dc, d0) => addMonths(d0, 1) },
+  { step_nome: "MEN2-LIG",  canal: "ligacao",  computeDate: (_dc, d0) => addMonths(d0, 2) },
+  { step_nome: "MEN3-WA",   canal: "whatsapp", computeDate: (_dc, d0) => addMonths(d0, 3) },
+  { step_nome: "MEN6-WA",   canal: "whatsapp", computeDate: (_dc, d0) => addMonths(d0, 6) },
 ];
 
 interface MigrationItem {
@@ -104,14 +104,15 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: roleRow, error: roleError } = await serviceClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
+    // Check admin role via core_users
+    const { data: adminUser, error: roleError } = await serviceClient
+      .from("core_users")
+      .select("cargo")
+      .eq("id", user.id)
+      .eq("cargo", "admin")
       .maybeSingle();
 
-    if (roleError || !roleRow) {
+    if (roleError || !adminUser) {
       return new Response(
         JSON.stringify({ error: "Forbidden: admin role required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -135,8 +136,8 @@ Deno.serve(async (req) => {
       const { meeting_id, primeiro_followup_em } = item;
 
       const { data: meeting, error: meetingErr } = await serviceClient
-        .from("meetings")
-        .select("id, status, closer_id, nome_lead, inicio_em")
+        .from("crm_meetings")
+        .select("id, status, closer_id, nome_lead, data_reuniao")
         .eq("id", meeting_id)
         .single();
 
@@ -150,47 +151,50 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Update primeiro_followup_em
-      await serviceClient.from("meetings").update({ primeiro_followup_em }).eq("id", meeting_id);
+      // Update data_proposta as the follow-up start reference
+      await serviceClient.from("crm_meetings").update({ data_proposta: primeiro_followup_em }).eq("id", meeting_id);
 
       const dc = primeiro_followup_em;
-      const d0 = toSaoPauloDate(meeting.inicio_em);
+      const d0 = toSaoPauloDate(meeting.data_reuniao);
       const stepsGerados: string[] = [];
       const stepsIgnorados: string[] = [];
       const stepsToInsert: Array<{
         meeting_id: string;
-        closer_id: string;
-        canal: string;
-        data_prevista: string;
+        responsavel_id: string;
+        canal_entrega: string;
+        data_programada: string;
         status: string;
-        codigo: string;
+        step_nome: string;
+        step_ordem: number;
       }> = [];
 
+      let ordem = 1;
       for (const step of CADENCE) {
         if (step.condition && !step.condition(dc, d0)) {
-          stepsIgnorados.push(`${step.codigo}:condicao`);
+          stepsIgnorados.push(`${step.step_nome}:condicao`);
           continue;
         }
-        const dataPrevista = step.computeDate(dc, d0);
-        if (dataPrevista >= today) {
+        const dataProgramada = step.computeDate(dc, d0);
+        if (dataProgramada >= today) {
           stepsToInsert.push({
             meeting_id,
-            closer_id: meeting.closer_id,
-            canal: step.canal,
-            data_prevista: dataPrevista,
+            responsavel_id: meeting.closer_id,
+            canal_entrega: step.canal === "whatsapp" ? "texto" : "texto",
+            data_programada: dataProgramada,
             status: "pendente",
-            codigo: step.codigo,
+            step_nome: step.step_nome,
+            step_ordem: ordem++,
           });
-          stepsGerados.push(step.codigo);
+          stepsGerados.push(step.step_nome);
         } else {
-          stepsIgnorados.push(step.codigo);
+          stepsIgnorados.push(step.step_nome);
         }
       }
 
       if (stepsToInsert.length > 0) {
         const { error: insertErr } = await serviceClient
-          .from("followup_steps")
-          .upsert(stepsToInsert, { onConflict: "meeting_id,codigo", ignoreDuplicates: true });
+          .from("crm_followup_steps")
+          .insert(stepsToInsert);
         if (insertErr) {
           console.error(`Error inserting steps for meeting ${meeting_id}:`, insertErr);
         }
