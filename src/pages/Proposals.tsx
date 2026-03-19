@@ -58,8 +58,8 @@ export default function Proposals() {
   });
 
   const { data: users = [] } = useAllProfiles();
-  const sdrs = users.filter((u) => u.role === "sdr" && u.ativo);
-  const closers = users.filter((u) => ["closer", "admin", "manager"].includes(u.role) && u.ativo);
+  const sdrs = users.filter((u) => u.cargo === "sdr" && u.ativo);
+  const closers = users.filter((u) => ["closer", "admin", "manager"].includes(u.cargo) && u.ativo);
 
   const dateRange = getDateRangeForPeriod(period);
   const filters: MeetingsFilters = {
