@@ -44,17 +44,6 @@ const formatCurrency = (v: number | null | undefined) =>
 export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps) {
   const queryClient = useQueryClient();
   const updateMeeting = useUpdateMeeting();
-  const [notas, setNotas] = useState("");
-  const [notasDirty, setNotasDirty] = useState(false);
-
-  // Sync notas when meeting changes
-  const meetingId = meeting?.id;
-  useState(() => {
-    if (meeting) {
-      setNotas(meeting.notas || "");
-      setNotasDirty(false);
-    }
-  });
 
   // Follow-up steps
   const { data: followups = [] } = useQuery({
