@@ -48,7 +48,7 @@ export function PipelineColumn({
     e.dataTransfer.setData("proposalId", proposalId);
   };
 
-  const total = proposals.reduce((sum, p) => sum + (p.valor_proposto || 0), 0);
+  const total = proposals.reduce((sum, p) => sum + (p.valor || 0), 0);
 
   return (
     <div
