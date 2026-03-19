@@ -34,10 +34,6 @@ export interface GenerateReportParams {
   manual_inputs: ManualInputs;
 }
 
-// =====================================================
-// DADOS FIXOS (Fixed Metrics - not AI generated)
-// =====================================================
-
 export interface MetasSemanais {
   meta_reunioes: number | null;
   reunioes_realizadas: number;
@@ -48,10 +44,7 @@ export interface MetasSemanais {
 }
 
 export interface DadosFixos {
-  periodo: {
-    inicio: string;
-    fim: string;
-  };
+  periodo: { inicio: string; fim: string };
   reunioes: {
     total_realizadas: number;
     meta_reunioes: number | null;
@@ -109,10 +102,6 @@ export interface DadosFixos {
   };
 }
 
-// =====================================================
-// AI OUTPUT (Qualitative Analysis)
-// =====================================================
-
 export interface AiReportOutput {
   ata: {
     periodo: string;
@@ -131,24 +120,11 @@ export interface AiReportOutput {
     evidencias: string[];
   };
   plano_de_acao: {
-    acoes: Array<{
-      id: number;
-      acao: string;
-      responsavel_sugerido: string;
-      prazo: string;
-      metrica_sucesso: string;
-    }>;
+    acoes: Array<{ id: number; acao: string; responsavel_sugerido: string; prazo: string; metrica_sucesso: string }>;
   };
   limitacoes_dos_dados: string[];
-  checks_qualidade: {
-    campos_ausentes: string[];
-    inconsistencias: string[];
-  };
+  checks_qualidade: { campos_ausentes: string[]; inconsistencias: string[] };
 }
-
-// =====================================================
-// FULL REPORT (Fixed + AI)
-// =====================================================
 
 export interface FullReport {
   dados_fixos: DadosFixos;
@@ -190,32 +166,15 @@ export function useGenerateWbrReport() {
       );
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao gerar relatório");
-      }
-
-      return data as {
-        success: boolean;
-        report: AiReportOutput;
-        dados_fixos: DadosFixos;
-        context: Record<string, unknown>;
-        model_used: string;
-      };
+      if (!response.ok) throw new Error(data.error || "Erro ao gerar relatório");
+      return data as { success: boolean; report: AiReportOutput; dados_fixos: DadosFixos; context: Record<string, unknown>; model_used: string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["wbr-ai-reports"] });
-      toast({
-        title: "Relatório gerado!",
-        description: "A IA processou os dados e gerou a análise.",
-      });
+      toast({ title: "Relatório gerado!", description: "A IA processou os dados e gerou a análise." });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao gerar relatório",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao gerar relatório", description: error.message, variant: "destructive" });
     },
   });
 }
@@ -225,13 +184,24 @@ export function useWbrReportHistory() {
     queryKey: ["wbr-ai-reports"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("wbr_ai_reports")
+        .from("crm_wbr_ai_reports")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(20);
 
       if (error) throw error;
-      return data as unknown as WbrAiReport[];
+      return (data || []).map((r: any) => ({
+        id: r.id,
+        report_type: "",
+        date_start: r.semana_inicio,
+        date_end: r.semana_fim,
+        premium_mode: false,
+        manual_inputs_json: null,
+        report_context_snapshot: r.dados_fonte as Record<string, unknown>,
+        ai_output_json: {} as AiReportOutput,
+        created_by: "",
+        created_at: r.created_at,
+      })) as WbrAiReport[];
     },
   });
 }
@@ -241,9 +211,8 @@ export function useWbrReport(reportId: string | null) {
     queryKey: ["wbr-ai-report", reportId],
     queryFn: async () => {
       if (!reportId) return null;
-
       const { data, error } = await supabase
-        .from("wbr_ai_reports")
+        .from("crm_wbr_ai_reports")
         .select("*")
         .eq("id", reportId)
         .single();
@@ -262,38 +231,24 @@ export function useDeleteWbrReport() {
   return useMutation({
     mutationFn: async (reportId: string) => {
       const { error } = await supabase
-        .from("wbr_ai_reports")
+        .from("crm_wbr_ai_reports")
         .delete()
         .eq("id", reportId);
-
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["wbr-ai-reports"] });
-      toast({
-        title: "Relatório excluído",
-        description: "O relatório foi removido do histórico.",
-      });
+      toast({ title: "Relatório excluído", description: "O relatório foi removido do histórico." });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     },
   });
 }
 
-// Helper to extract dados_fixos from report_context_snapshot
 export function extractDadosFixos(report: WbrAiReport): DadosFixos | null {
-  const snapshot = report.report_context_snapshot as Record<string, unknown> | null;
-  if (snapshot?.dados_fixos) {
-    return snapshot.dados_fixos as DadosFixos;
-  }
-  // Fallback: try to build from breakdowns (for older reports)
-  if (snapshot?.breakdowns) {
-    return snapshot.breakdowns as DadosFixos;
-  }
+  const snapshot = report.report_context_snapshot;
+  if (snapshot?.dados_fixos) return snapshot.dados_fixos as DadosFixos;
+  if (snapshot?.breakdowns) return snapshot.breakdowns as DadosFixos;
   return null;
 }

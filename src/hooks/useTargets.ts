@@ -38,13 +38,22 @@ export function useWeeklyTargets() {
     queryKey: ["weekly-targets-list"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("weekly_targets")
-        .select("*, profiles:criado_por(nome)")
+        .from("crm_weekly_targets")
+        .select("*")
         .order("semana_inicio", { ascending: false })
         .limit(20);
 
       if (error) throw error;
-      return data as WeeklyTarget[];
+      return ((data || []) as any[]).map((t) => ({
+        id: t.id,
+        semana_inicio: t.semana_inicio,
+        semana_fim: t.semana_inicio, // No semana_fim in new schema
+        meta_reunioes_realizadas: t.meta_reunioes || 0,
+        meta_fechamentos_qtd: t.meta_fechamentos || 0,
+        meta_fechamentos_valor: t.meta_valor,
+        criado_por: t.user_id || "",
+        criado_em: t.created_at,
+      })) as WeeklyTarget[];
     },
   });
 }
@@ -54,30 +63,45 @@ export function useMonthlyTargets() {
     queryKey: ["monthly-targets-list"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("monthly_targets")
-        .select("*, profiles:criado_por(nome)")
-        .order("mes_ano", { ascending: false })
+        .from("crm_monthly_targets")
+        .select("*")
+        .order("mes", { ascending: false })
         .limit(12);
 
       if (error) throw error;
-      return data as MonthlyTarget[];
+      return ((data || []) as any[]).map((t) => ({
+        id: t.id,
+        mes_ano: t.mes,
+        meta_faturamento: t.meta_valor || 0,
+        criado_por: t.user_id || "",
+        criado_em: t.created_at,
+      })) as MonthlyTarget[];
     },
   });
 }
 
-export function useWeeklyTargetByWeek(semanaInicio: string, semanaFim: string) {
+export function useWeeklyTargetByWeek(semanaInicio: string, _semanaFim: string) {
   return useQuery({
-    queryKey: ["weekly-target", semanaInicio, semanaFim],
+    queryKey: ["weekly-target", semanaInicio],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("weekly_targets")
+        .from("crm_weekly_targets")
         .select("*")
         .eq("semana_inicio", semanaInicio)
-        .eq("semana_fim", semanaFim)
         .maybeSingle();
 
       if (error) throw error;
-      return data as WeeklyTarget | null;
+      if (!data) return null;
+      return {
+        id: data.id,
+        semana_inicio: data.semana_inicio,
+        semana_fim: data.semana_inicio,
+        meta_reunioes_realizadas: data.meta_reunioes || 0,
+        meta_fechamentos_qtd: data.meta_fechamentos || 0,
+        meta_fechamentos_valor: data.meta_valor,
+        criado_por: data.user_id || "",
+        criado_em: data.created_at,
+      } as WeeklyTarget;
     },
   });
 }
@@ -87,13 +111,20 @@ export function useMonthlyTargetByMonth(mesAno: string) {
     queryKey: ["monthly-target", mesAno],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("monthly_targets")
+        .from("crm_monthly_targets")
         .select("*")
-        .eq("mes_ano", mesAno)
+        .eq("mes", mesAno)
         .maybeSingle();
 
       if (error) throw error;
-      return data as MonthlyTarget | null;
+      if (!data) return null;
+      return {
+        id: data.id,
+        mes_ano: data.mes,
+        meta_faturamento: data.meta_valor || 0,
+        criado_por: data.user_id || "",
+        criado_em: data.created_at,
+      } as MonthlyTarget;
     },
   });
 }
@@ -115,16 +146,16 @@ export function useCreateWeeklyTarget() {
       if (!user) throw new Error("Usuário não autenticado");
 
       const { data, error } = await supabase
-        .from("weekly_targets")
+        .from("crm_weekly_targets")
         .upsert(
           {
-            ...input,
-            criado_por: user.id,
+            semana_inicio: input.semana_inicio,
+            meta_reunioes: input.meta_reunioes_realizadas,
+            meta_fechamentos: input.meta_fechamentos_qtd,
+            meta_valor: input.meta_fechamentos_valor || 0,
+            user_id: user.id,
           },
-          {
-            onConflict: "semana_inicio,semana_fim",
-            ignoreDuplicates: false,
-          }
+          { onConflict: "semana_inicio", ignoreDuplicates: false }
         )
         .select()
         .single();
@@ -137,10 +168,7 @@ export function useCreateWeeklyTarget() {
       queryClient.invalidateQueries({ queryKey: ["weekly-target"] });
       toast.success("Meta semanal salva com sucesso!");
     },
-    onError: (error) => {
-      console.error("Error saving weekly target:", error);
-      toast.error("Erro ao salvar meta semanal");
-    },
+    onError: () => toast.error("Erro ao salvar meta semanal"),
   });
 }
 
@@ -158,16 +186,14 @@ export function useCreateMonthlyTarget() {
       if (!user) throw new Error("Usuário não autenticado");
 
       const { data, error } = await supabase
-        .from("monthly_targets")
+        .from("crm_monthly_targets")
         .upsert(
           {
-            ...input,
-            criado_por: user.id,
+            mes: input.mes_ano,
+            meta_valor: input.meta_faturamento,
+            user_id: user.id,
           },
-          {
-            onConflict: "mes_ano",
-            ignoreDuplicates: false,
-          }
+          { onConflict: "mes", ignoreDuplicates: false }
         )
         .select()
         .single();
@@ -181,32 +207,18 @@ export function useCreateMonthlyTarget() {
       queryClient.invalidateQueries({ queryKey: ["monthly-targets-with-progress"] });
       toast.success("Meta mensal salva com sucesso!");
     },
-    onError: (error) => {
-      console.error("Error saving monthly target:", error);
-      toast.error("Erro ao salvar meta mensal");
-    },
+    onError: () => toast.error("Erro ao salvar meta mensal"),
   });
 }
 
-// Interfaces for progress-enhanced targets
 export interface WeeklyTargetWithProgress extends WeeklyTarget {
-  resultado: {
-    fechamentos: number;
-    valorFechado: number;
-    reunioesRealizadas: number;
-  };
-  progresso: {
-    contratos: number;
-    reunioes: number;
-  };
+  resultado: { fechamentos: number; valorFechado: number; reunioesRealizadas: number };
+  progresso: { contratos: number; reunioes: number };
   isPast: boolean;
 }
 
 export interface MonthlyTargetWithProgress extends MonthlyTarget {
-  resultado: {
-    valorFechado: number;
-    qtdFechamentos: number;
-  };
+  resultado: { valorFechado: number; qtdFechamentos: number };
   progresso: number;
   isPast: boolean;
 }
@@ -219,16 +231,14 @@ export function useWeeklyTargetsWithProgress(year?: number, month?: number) {
   return useQuery({
     queryKey: ["weekly-targets-with-progress", selectedYear, selectedMonth],
     queryFn: async () => {
-      // Calcular primeiro e último dia do mês
       const startDate = new Date(selectedYear, selectedMonth - 1, 1);
       const endDate = endOfMonth(startDate);
-
       const startOfPeriod = format(startDate, "yyyy-MM-dd");
       const endOfPeriod = format(endDate, "yyyy-MM-dd");
 
       const { data: targets, error } = await supabase
-        .from("weekly_targets")
-        .select("*, profiles:criado_por(nome)")
+        .from("crm_weekly_targets")
+        .select("*")
         .gte("semana_inicio", startOfPeriod)
         .lte("semana_inicio", endOfPeriod)
         .order("semana_inicio", { ascending: false });
@@ -238,41 +248,40 @@ export function useWeeklyTargetsWithProgress(year?: number, month?: number) {
 
       const targetsWithProgress = await Promise.all(
         targets.map(async (target) => {
-          // Buscar fechamentos (ganhas) do período
           const { data: fechamentos } = await supabase
-            .from("meetings")
-            .select("id, valor_fechado")
-            .eq("status", "ganha")
-            .gte("fechado_em", target.semana_inicio + "T00:00:00")
-            .lte("fechado_em", target.semana_fim + "T23:59:59");
+            .from("crm_meetings")
+            .select("id, valor_fechamento")
+            .eq("status", "fechado")
+            .gte("data_fechamento", target.semana_inicio + "T00:00:00");
 
-          // Buscar reuniões realizadas do período
           const { data: realizadas } = await supabase
-            .from("meetings")
+            .from("crm_meetings")
             .select("id")
-            .in("status", ["aconteceu", "proposta_enviada", "ganha", "perdida"])
-            .gte("inicio_em", target.semana_inicio + "T00:00:00")
-            .lte("inicio_em", target.semana_fim + "T23:59:59");
+            .in("status", ["reuniao_realizada", "proposta_enviada", "fechado", "perdido"])
+            .gte("data_reuniao", target.semana_inicio + "T00:00:00");
 
           const fechamentosCount = fechamentos?.length || 0;
           const realizadasCount = realizadas?.length || 0;
 
           return {
-            ...target,
+            id: target.id,
+            semana_inicio: target.semana_inicio,
+            semana_fim: target.semana_inicio,
+            meta_reunioes_realizadas: target.meta_reunioes || 0,
+            meta_fechamentos_qtd: target.meta_fechamentos || 0,
+            meta_fechamentos_valor: target.meta_valor,
+            criado_por: target.user_id || "",
+            criado_em: target.created_at,
             resultado: {
               fechamentos: fechamentosCount,
-              valorFechado: fechamentos?.reduce((s, m) => s + (m.valor_fechado || 0), 0) || 0,
+              valorFechado: fechamentos?.reduce((s, m) => s + (m.valor_fechamento || 0), 0) || 0,
               reunioesRealizadas: realizadasCount,
             },
             progresso: {
-              contratos: target.meta_fechamentos_qtd > 0
-                ? (fechamentosCount / target.meta_fechamentos_qtd) * 100
-                : 0,
-              reunioes: (target.meta_reunioes_realizadas || 0) > 0
-                ? (realizadasCount / (target.meta_reunioes_realizadas || 1)) * 100
-                : 0,
+              contratos: (target.meta_fechamentos || 0) > 0 ? (fechamentosCount / (target.meta_fechamentos || 1)) * 100 : 0,
+              reunioes: (target.meta_reunioes || 0) > 0 ? (realizadasCount / (target.meta_reunioes || 1)) * 100 : 0,
             },
-            isPast: new Date(target.semana_fim + "T23:59:59") < new Date(),
+            isPast: new Date(target.semana_inicio + "T23:59:59") < new Date(),
           } as WeeklyTargetWithProgress;
         })
       );
@@ -292,40 +301,36 @@ export function useMonthlyTargetsWithProgress(year?: number) {
       const endOfYear = `${selectedYear}-12-31`;
 
       const { data: targets, error } = await supabase
-        .from("monthly_targets")
-        .select("*, profiles:criado_por(nome)")
-        .gte("mes_ano", startOfYear)
-        .lte("mes_ano", endOfYear)
-        .order("mes_ano", { ascending: false });
+        .from("crm_monthly_targets")
+        .select("*")
+        .gte("mes", startOfYear)
+        .lte("mes", endOfYear)
+        .order("mes", { ascending: false });
 
       if (error) throw error;
       if (!targets) return [];
 
       const targetsWithProgress = await Promise.all(
         targets.map(async (target) => {
-          const inicioMes = target.mes_ano;
-          const fimMes = endOfMonth(new Date(target.mes_ano + "T00:00:00"));
+          const fimMes = endOfMonth(new Date(target.mes + "T00:00:00"));
 
           const { data: fechamentos } = await supabase
-            .from("meetings")
-            .select("valor_fechado")
-            .eq("status", "ganha")
-            .gte("fechado_em", inicioMes + "T00:00:00")
-            .lte("fechado_em", fimMes.toISOString());
+            .from("crm_meetings")
+            .select("valor_fechamento")
+            .eq("status", "fechado")
+            .gte("data_fechamento", target.mes + "T00:00:00")
+            .lte("data_fechamento", fimMes.toISOString());
 
-          const valorFechado = fechamentos?.reduce(
-            (sum, m) => sum + (m.valor_fechado || 0), 0
-          ) || 0;
+          const valorFechado = fechamentos?.reduce((sum, m) => sum + (m.valor_fechamento || 0), 0) || 0;
 
           return {
-            ...target,
-            resultado: {
-              valorFechado,
-              qtdFechamentos: fechamentos?.length || 0,
-            },
-            progresso: target.meta_faturamento > 0
-              ? (valorFechado / target.meta_faturamento) * 100
-              : 0,
+            id: target.id,
+            mes_ano: target.mes,
+            meta_faturamento: target.meta_valor || 0,
+            criado_por: target.user_id || "",
+            criado_em: target.created_at,
+            resultado: { valorFechado, qtdFechamentos: fechamentos?.length || 0 },
+            progresso: (target.meta_valor || 0) > 0 ? (valorFechado / (target.meta_valor || 1)) * 100 : 0,
             isPast: fimMes < new Date(),
           } as MonthlyTargetWithProgress;
         })
@@ -336,20 +341,25 @@ export function useMonthlyTargetsWithProgress(year?: number) {
   });
 }
 
-// ==================== YEARLY TARGETS ====================
-
 export function useYearlyTargetByYear(ano: number) {
   return useQuery({
     queryKey: ["yearly-target", ano],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("yearly_targets")
+        .from("crm_yearly_targets")
         .select("*")
         .eq("ano", ano)
         .maybeSingle();
 
       if (error) throw error;
-      return data as YearlyTarget | null;
+      if (!data) return null;
+      return {
+        id: data.id,
+        ano: data.ano,
+        meta_faturamento: data.meta_valor || 0,
+        criado_por: data.user_id || "",
+        criado_em: data.created_at,
+      } as YearlyTarget;
     },
   });
 }
@@ -368,16 +378,14 @@ export function useCreateYearlyTarget() {
       if (!user) throw new Error("Usuário não autenticado");
 
       const { data, error } = await supabase
-        .from("yearly_targets")
+        .from("crm_yearly_targets")
         .upsert(
           {
-            ...input,
-            criado_por: user.id,
+            ano: input.ano,
+            meta_valor: input.meta_faturamento,
+            user_id: user.id,
           },
-          {
-            onConflict: "ano",
-            ignoreDuplicates: false,
-          }
+          { onConflict: "ano", ignoreDuplicates: false }
         )
         .select()
         .single();
@@ -387,12 +395,8 @@ export function useCreateYearlyTarget() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["yearly-target", variables.ano] });
-      queryClient.invalidateQueries({ queryKey: ["yearly-target"] });
       toast.success("Meta anual salva com sucesso!");
     },
-    onError: (error) => {
-      console.error("Error saving yearly target:", error);
-      toast.error("Erro ao salvar meta anual");
-    },
+    onError: () => toast.error("Erro ao salvar meta anual"),
   });
 }

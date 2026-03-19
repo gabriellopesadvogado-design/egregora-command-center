@@ -1,10 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-type AppRole = Database["public"]["Enums"]["app_role"];
+type Profile = Tables<"core_users">;
 
 interface CreateUserData {
   email: string;
@@ -33,7 +32,7 @@ export function useAllProfiles() {
     queryKey: ["all-profiles"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("core_users")
         .select("*")
         .order("nome");
       
@@ -45,16 +44,13 @@ export function useAllProfiles() {
 
 export function useCreateUser() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (userData: CreateUserData) => {
       const { data, error } = await supabase.functions.invoke("manage-users", {
         body: { action: "create_user", ...userData },
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      
       return data;
     },
     onSuccess: () => {
@@ -69,16 +65,13 @@ export function useCreateUser() {
 
 export function useUpdateUserRole() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (data: UpdateRoleData) => {
       const { data: result, error } = await supabase.functions.invoke("manage-users", {
         body: { action: "update_role", ...data },
       });
-
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
-      
       return result;
     },
     onSuccess: () => {
@@ -93,16 +86,13 @@ export function useUpdateUserRole() {
 
 export function useToggleUserActive() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (data: ToggleActiveData) => {
       const { data: result, error } = await supabase.functions.invoke("manage-users", {
         body: { action: "toggle_active", ...data },
       });
-
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
-      
       return result;
     },
     onSuccess: (_, variables) => {
@@ -121,10 +111,8 @@ export function useResetUserPassword() {
       const { data: result, error } = await supabase.functions.invoke("manage-users", {
         body: { action: "reset_password", ...data },
       });
-
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
-      
       return result;
     },
     onSuccess: () => {

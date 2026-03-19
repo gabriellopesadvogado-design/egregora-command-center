@@ -6,20 +6,20 @@ export type FollowupStep = {
   id: string;
   meeting_id: string;
   closer_id: string;
-  canal: "ligacao" | "whatsapp";
+  canal: string;
   codigo: string | null;
   data_prevista: string;
-  status: "pendente" | "feito" | "ignorado";
+  status: string;
   notas: string | null;
   executado_em: string | null;
   criado_em: string;
-  tipo: "padrao" | "manual";
+  tipo: string;
   manual_titulo: string | null;
   meeting: {
     nome_lead: string | null;
     status: string;
     telefone: string | null;
-    avaliacao_reuniao: "boa" | "neutra" | "ruim" | null;
+    avaliacao_reuniao: string | null;
     perda_tipo: string | null;
     inicio_em: string | null;
   } | null;
@@ -36,9 +36,9 @@ function sortFollowups(a: FollowupStep, b: FollowupStep): number {
 
 async function fetchFollowups(closerId?: string, showAll?: boolean) {
   let query = supabase
-    .from("followup_steps")
-    .select("*, meeting:meetings(nome_lead, status, telefone, avaliacao_reuniao, perda_tipo, inicio_em)")
-    .order("data_prevista", { ascending: true })
+    .from("crm_followup_steps")
+    .select(`*, meeting:crm_meetings!crm_followup_steps_meeting_id_fkey(nome_lead, status, telefone_lead, motivo_perda, data_reuniao)`)
+    .order("data_programada", { ascending: true })
     .limit(5000);
 
   if (!showAll) {
@@ -46,23 +46,35 @@ async function fetchFollowups(closerId?: string, showAll?: boolean) {
   }
 
   if (closerId) {
-    query = query.eq("closer_id", closerId);
+    query = query.eq("responsavel_id", closerId);
   }
 
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data as unknown as FollowupStep[]).filter((s) => {
-    // Exclude won deals
-    if (s.meeting?.status === "ganha") return false;
-    // Exclude definitive losses
-    if (s.meeting?.status === "perdida" && s.meeting?.perda_tipo === "definitiva") return false;
-    // For simple losses, show only pending MEN* steps
-    if (s.meeting?.status === "perdida" && s.meeting?.perda_tipo === "simples") {
-      return s.codigo?.startsWith("MEN") && s.status === "pendente";
-    }
-    return true;
-  });
+  // Map to compat shape
+  return ((data || []) as any[]).map((s) => ({
+    id: s.id,
+    meeting_id: s.meeting_id,
+    closer_id: s.responsavel_id,
+    canal: s.canal_entrega,
+    codigo: s.step_nome,
+    data_prevista: s.data_programada,
+    status: s.status,
+    notas: s.notas,
+    executado_em: s.data_execucao,
+    criado_em: s.created_at,
+    tipo: "padrao",
+    manual_titulo: null,
+    meeting: s.meeting ? {
+      nome_lead: s.meeting.nome_lead,
+      status: s.meeting.status,
+      telefone: s.meeting.telefone_lead,
+      avaliacao_reuniao: null,
+      perda_tipo: s.meeting.motivo_perda,
+      inicio_em: s.meeting.data_reuniao,
+    } : null,
+  })) as FollowupStep[];
 }
 
 export function useFollowups(closerId?: string, showAll?: boolean) {
@@ -77,18 +89,10 @@ export function useFollowups(closerId?: string, showAll?: boolean) {
 
   const all = query.data ?? [];
 
-  const overdue = all.filter(
-    (s) => s.data_prevista < today && s.status === "pendente"
-  ).sort(sortFollowups);
-  const forToday = all.filter(
-    (s) => s.data_prevista === today && s.status === "pendente"
-  ).sort(sortFollowups);
-  const next7days = all.filter(
-    (s) => s.data_prevista >= tomorrow && s.data_prevista <= in7days && s.status === "pendente"
-  ).sort(sortFollowups);
-  const future = all.filter(
-    (s) => s.data_prevista > in7days && s.status === "pendente"
-  ).sort(sortFollowups);
+  const overdue = all.filter((s) => s.data_prevista < today && s.status === "pendente").sort(sortFollowups);
+  const forToday = all.filter((s) => s.data_prevista === today && s.status === "pendente").sort(sortFollowups);
+  const next7days = all.filter((s) => s.data_prevista >= tomorrow && s.data_prevista <= in7days && s.status === "pendente").sort(sortFollowups);
+  const future = all.filter((s) => s.data_prevista > in7days && s.status === "pendente").sort(sortFollowups);
 
   return { ...query, overdue, forToday, next7days, future };
 }
@@ -96,22 +100,12 @@ export function useFollowups(closerId?: string, showAll?: boolean) {
 export function useMarkFollowupDone() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      id,
-      notas,
-      newMeetingStatus,
-      meetingId,
-    }: {
-      id: string;
-      notas?: string;
-      newMeetingStatus?: string;
-      meetingId?: string;
-    }) => {
+    mutationFn: async ({ id, notas, newMeetingStatus, meetingId }: { id: string; notas?: string; newMeetingStatus?: string; meetingId?: string }) => {
       const { error } = await supabase
-        .from("followup_steps")
+        .from("crm_followup_steps")
         .update({
-          status: "feito" as any,
-          executado_em: new Date().toISOString(),
+          status: "enviado" as any,
+          data_execucao: new Date().toISOString(),
           notas: notas || null,
         })
         .eq("id", id);
@@ -119,7 +113,7 @@ export function useMarkFollowupDone() {
 
       if (newMeetingStatus && meetingId) {
         const { error: meetErr } = await supabase
-          .from("meetings")
+          .from("crm_meetings")
           .update({ status: newMeetingStatus as any })
           .eq("id", meetingId);
         if (meetErr) throw meetErr;
@@ -137,8 +131,8 @@ export function useMarkFollowupIgnored() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("followup_steps")
-        .update({ status: "ignorado" as any })
+        .from("crm_followup_steps")
+        .update({ status: "pulado" as any })
         .eq("id", id);
       if (error) throw error;
     },
@@ -151,15 +145,7 @@ export function useMarkFollowupIgnored() {
 export function useSetDealOutcome() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      meetingId,
-      outcome,
-      motivo,
-    }: {
-      meetingId: string;
-      outcome: "ganha" | "perdida_simples" | "perdida_definitiva";
-      motivo?: string;
-    }) => {
+    mutationFn: async ({ meetingId, outcome, motivo }: { meetingId: string; outcome: string; motivo?: string }) => {
       const { data, error } = await supabase.functions.invoke("set-deal-outcome", {
         body: { meeting_id: meetingId, outcome, motivo },
       });
@@ -177,18 +163,8 @@ export function useSetDealOutcome() {
 export function useRescheduleFollowup() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: {
-      meeting_id: string;
-      canal: "whatsapp" | "ligacao";
-      data_prevista: string;
-      horario?: string;
-      notas?: string;
-      pause_default: boolean;
-      step_id?: string;
-    }) => {
-      const { data, error } = await supabase.functions.invoke("reschedule-followup", {
-        body,
-      });
+    mutationFn: async (body: any) => {
+      const { data, error } = await supabase.functions.invoke("reschedule-followup", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data;
