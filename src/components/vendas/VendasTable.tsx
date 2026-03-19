@@ -85,7 +85,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
     queryKey: ["followup-counts", proposalMeetingIds],
     queryFn: async () => {
       if (proposalMeetingIds.length === 0) return [];
-      const { data, error } = await supabase.rpc("get_followup_counts", {
+      const { data, error } = await (supabase.rpc as any)("get_followup_counts", {
         p_meeting_ids: proposalMeetingIds,
       });
       if (error) throw error;

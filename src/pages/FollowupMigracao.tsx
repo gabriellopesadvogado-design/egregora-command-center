@@ -24,10 +24,11 @@ interface MeetingRow {
   id: string;
   nome_lead: string | null;
   closer_id: string;
-  inicio_em: string;
+  data_reuniao: string;
   closer_nome?: string;
 }
 
+// Interfaces for PreviewRow, MigrationResult, and CadenceItem
 interface PreviewRow {
   meeting_id: string;
   lead_name: string;
@@ -73,13 +74,11 @@ const CADENCE: CadenceItem[] = [
   { codigo: "MEN6-WA",   label: "MEN6-WA (M+6)",       computeDate: (_dc, d0) => addMonths(d0, 6) },
 ];
 
-/** Convert an ISO timestamp to a midnight Date in America/Sao_Paulo */
 function toSaoPauloDate(isoString: string): Date {
   const spStr = new Date(isoString).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   return new Date(spStr + "T00:00:00");
 }
 
-/** Today at midnight in America/Sao_Paulo */
 function todaySP(): Date {
   const spStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   return new Date(spStr + "T00:00:00");
@@ -124,7 +123,7 @@ export default function FollowupMigracao() {
   const [dcMap, setDcMap] = useState<Record<string, Date>>({});
   const [allowPartial, setAllowPartial] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<{
+  const [results, setResults] = useState<{\
     results: MigrationResult[];
     totals: { total_meetings: number; total_steps_gerados: number; total_steps_ignorados: number };
   } | null>(null);
@@ -133,22 +132,27 @@ export default function FollowupMigracao() {
     queryKey: ["migration-meetings"],
     queryFn: async () => {
       const { data: mtgs, error } = await supabase
-        .from("meetings")
-        .select("id, nome_lead, closer_id, inicio_em")
-        .eq("status", "proposta_enviada")
-        .is("primeiro_followup_em", null);
+        .from("crm_meetings")
+        .select("id, nome_lead, closer_id, data_reuniao")
+        .eq("status", "proposta_enviada");
       if (error) throw error;
 
-      const closerIds = [...new Set((mtgs || []).map((m) => m.closer_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, nome")
-        .in("id", closerIds);
+      const closerIds = [...new Set((mtgs || []).map((m: any) => m.closer_id).filter(Boolean))];
+      let profileMap: Record<string, string> = {};
+      if (closerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("core_users")
+          .select("id, nome")
+          .in("id", closerIds);
+        profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.nome]));
+      }
 
-      const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p.nome]));
-      return (mtgs || []).map((m) => ({
-        ...m,
-        closer_nome: profileMap[m.closer_id] || m.closer_id,
+      return (mtgs || []).map((m: any) => ({
+        id: m.id,
+        nome_lead: m.nome_lead,
+        closer_id: m.closer_id,
+        data_reuniao: m.data_reuniao,
+        closer_nome: m.closer_id ? profileMap[m.closer_id] || m.closer_id : "—",
       })) as MeetingRow[];
     },
   });
@@ -165,7 +169,7 @@ export default function FollowupMigracao() {
       .filter((m) => dcMap[m.id])
       .map((m) => {
         const dc = dcMap[m.id];
-        const d0 = toSaoPauloDate(m.inicio_em);
+        const d0 = toSaoPauloDate(m.data_reuniao);
         const { gerados, ignorados } = simulateSteps(dc, d0, today);
         return {
           meeting_id: m.id,
@@ -285,7 +289,7 @@ export default function FollowupMigracao() {
                   </TableHeader>
                   <TableBody>
                     {meetings.map((m) => {
-                      const d0 = toSaoPauloDate(m.inicio_em);
+                      const d0 = toSaoPauloDate(m.data_reuniao);
                       const dias = differenceInDays(today, d0);
                       return (
                         <TableRow key={m.id}>
@@ -458,7 +462,6 @@ export default function FollowupMigracao() {
 
           <Button onClick={() => navigate("/followup")}>
             Ir para Follow-ups
-            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       )}

@@ -388,7 +388,7 @@ export default function Followup() {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <CanalIcon canal={step.canal} />
+                  <CanalIcon canal={step.canal as "ligacao" | "whatsapp"} />
                 </TableCell>
                 <TableCell>
                   <div>

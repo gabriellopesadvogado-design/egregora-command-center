@@ -20,9 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useResetUserPassword } from "@/hooks/useUsers";
 import { Eye, EyeOff } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Profile = Tables<"core_users">;
 
 const resetPasswordSchema = z.object({
   new_password: z
