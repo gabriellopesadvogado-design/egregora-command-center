@@ -27,7 +27,7 @@ import { useAllProfiles } from "@/hooks/useUsers";
 import { CanceledMeetingsTable } from "@/components/meetings/CanceledMeetingsTable";
 import { RescheduleModal } from "@/components/meetings/RescheduleModal";
 import { RecoveryChart } from "@/components/meetings/RecoveryChart";
-import { LossModal } from "@/components/pipeline/LossModal";
+import { MotivoPerdaModal } from "@/components/shared/MotivoPerdaModal";
 import { SimplePeriodFilter, getDateRangeForPeriod, type PeriodType } from "@/components/pre-venda/SimplePeriodFilter";
 
 const fonteOptions: { value: PlataformaOrigem; label: string }[] = [
