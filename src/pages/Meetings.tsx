@@ -27,7 +27,7 @@ import { useAllProfiles } from "@/hooks/useUsers";
 import { CanceledMeetingsTable } from "@/components/meetings/CanceledMeetingsTable";
 import { RescheduleModal } from "@/components/meetings/RescheduleModal";
 import { RecoveryChart } from "@/components/meetings/RecoveryChart";
-import { LossModal } from "@/components/pipeline/LossModal";
+import { MotivoPerdaModal } from "@/components/shared/MotivoPerdaModal";
 import { SimplePeriodFilter, getDateRangeForPeriod, type PeriodType } from "@/components/pre-venda/SimplePeriodFilter";
 
 const fonteOptions: { value: PlataformaOrigem; label: string }[] = [
@@ -131,17 +131,16 @@ export default function Meetings() {
     }
   };
 
-  const confirmLoss = async (motivoPerda: string) => {
+  const confirmLoss = async (motivo: string, _observacao: string) => {
     if (!selectedMeeting) return;
 
     try {
       await updateMeeting.mutateAsync({
         id: selectedMeeting.id,
         status: "perdido",
-        motivo_perda: motivoPerda,
+        motivo_perda: motivo,
         data_fechamento: new Date().toISOString(),
       });
-
 
       toast.success("Reunião marcada como perdida");
       setLossModalOpen(false);
@@ -355,7 +354,7 @@ export default function Meetings() {
         isLoading={updateMeeting.isPending}
       />
 
-      <LossModal
+      <MotivoPerdaModal
         open={lossModalOpen}
         onClose={() => {
           setLossModalOpen(false);

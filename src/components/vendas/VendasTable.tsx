@@ -32,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { StatusVendasToggle } from "./StatusVendasToggle";
 import { QualificacaoSelect } from "./QualificacaoSelect";
 import { WinModal } from "@/components/pipeline/WinModal";
-import { VendasLossModal } from "./VendasLossModal";
+import { MotivoPerdaModal } from "@/components/shared/MotivoPerdaModal";
 import { ProposalValueModal } from "./ProposalValueModal";
 import { useUpdateMeeting, type Meeting, type MeetingStatus, type AvaliacaoReuniao, type PlataformaOrigem } from "@/hooks/useMeetings";
 
@@ -225,13 +225,13 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
     }
   };
 
-  const handleLoss = async (outcome: "perdida_simples" | "perdida_definitiva", motivo: string) => {
+  const handleLoss = async (motivo: string, observacao: string) => {
     if (!lossModalMeeting) return;
     
     setOutcomeLoading(true);
     try {
       const { error: fnError } = await supabase.functions.invoke("set-deal-outcome", {
-        body: { meeting_id: lossModalMeeting.id, outcome, motivo },
+        body: { meeting_id: lossModalMeeting.id, outcome: "perdido", motivo, observacao },
       });
       if (fnError) throw fnError;
 
@@ -240,12 +240,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
       queryClient.invalidateQueries({ queryKey: ["followup-counts"] });
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
 
-
-      toast.info(
-        outcome === "perdida_simples"
-          ? "Perdido simples — cadência mensal mantida"
-          : "Proposta registrada como perdida"
-      );
+      toast.info("Proposta registrada como perdida");
       setLossModalMeeting(null);
     } catch (error: any) {
       toast.error(error?.message || "Erro ao registrar perda");
@@ -795,7 +790,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
         isLoading={outcomeLoading || updateMeeting.isPending}
       />
 
-      <VendasLossModal
+      <MotivoPerdaModal
         open={!!lossModalMeeting}
         onClose={() => setLossModalMeeting(null)}
         onConfirm={handleLoss}

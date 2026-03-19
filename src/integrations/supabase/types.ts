@@ -1011,6 +1011,7 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_admin_or_gestor: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       crm_canal_entrega: "texto" | "audio" | "texto_e_audio"
