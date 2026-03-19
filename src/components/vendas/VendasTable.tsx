@@ -32,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { StatusVendasToggle } from "./StatusVendasToggle";
 import { QualificacaoSelect } from "./QualificacaoSelect";
 import { WinModal } from "@/components/pipeline/WinModal";
-import { VendasLossModal } from "./VendasLossModal";
+import { MotivoPerdaModal } from "@/components/shared/MotivoPerdaModal";
 import { ProposalValueModal } from "./ProposalValueModal";
 import { useUpdateMeeting, type Meeting, type MeetingStatus, type AvaliacaoReuniao, type PlataformaOrigem } from "@/hooks/useMeetings";
 
