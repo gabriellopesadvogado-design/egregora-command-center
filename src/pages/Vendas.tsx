@@ -24,13 +24,12 @@ import { useAllProfiles } from "@/hooks/useUsers";
 import type { MeetingsFilters as FiltersType, MeetingStatus, PlataformaOrigem } from "@/hooks/useMeetings";
 
 const statusOptions: { value: MeetingStatus; label: string; emoji: string }[] = [
-  { value: "agendada", label: "Agendada", emoji: "🕐" },
-  { value: "aconteceu", label: "Realizada", emoji: "✅" },
+  { value: "reuniao_agendada", label: "Agendada", emoji: "🕐" },
+  { value: "reuniao_realizada", label: "Realizada", emoji: "✅" },
   { value: "proposta_enviada", label: "Proposta Enviada", emoji: "🚀" },
-  { value: "ganha", label: "Ganha", emoji: "🏆" },
-  { value: "perdida", label: "Perdida", emoji: "💔" },
-  { value: "no_show", label: "No Show", emoji: "🚫" },
-  { value: "cancelada", label: "Cancelada", emoji: "❌" },
+  { value: "fechado", label: "Fechado", emoji: "🏆" },
+  { value: "perdido", label: "Perdido", emoji: "💔" },
+  { value: "nao_elegivel", label: "Não Elegível", emoji: "🚫" },
 ];
 
 const fonteOptions: { value: PlataformaOrigem; label: string }[] = [
