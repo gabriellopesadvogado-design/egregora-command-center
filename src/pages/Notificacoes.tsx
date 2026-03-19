@@ -129,9 +129,9 @@ export default function Notificacoes() {
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
-                          {format(new Date(notification.enviado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          {format(new Date(notification.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                           {" · "}
-                          {formatDistanceToNow(new Date(notification.enviado_em), {
+                          {formatDistanceToNow(new Date(notification.created_at), {
                             addSuffix: true,
                             locale: ptBR,
                           })}

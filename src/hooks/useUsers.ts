@@ -14,7 +14,7 @@ interface CreateUserData {
 
 interface UpdateRoleData {
   user_id: string;
-  role: "sdr" | "closer";
+  role: string;
 }
 
 interface ToggleActiveData {

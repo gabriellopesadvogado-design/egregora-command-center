@@ -45,19 +45,14 @@ const createUserSchema = z.object({
     .string()
     .min(6, "A senha deve ter no mínimo 6 caracteres")
     .max(72, "Senha muito longa"),
-  role: z.string().min(1, "Selecione uma função"),
+  role: z.enum(["sdr", "closer"]),
 });
+
+type CreateUserFormData = z.infer<typeof createUserSchema>;
 
 interface CreateUserModalProps {
   open: boolean;
   onClose: () => void;
-}
-
-interface CreateUserFormData {
-  nome: string;
-  email: string;
-  password: string;
-  role: "sdr" | "closer";
 }
 
 export function CreateUserModal({ open, onClose }: CreateUserModalProps) {

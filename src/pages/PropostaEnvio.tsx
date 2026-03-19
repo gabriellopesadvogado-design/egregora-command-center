@@ -5,15 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileOutput, Search, Plus } from "lucide-react";
 import { useProposals, type Proposal } from "@/hooks/useProposals";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { ProposalModal } from "@/components/proposals/ProposalModal";
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  aberta: { label: "Aberta", variant: "outline" },
-  follow_up: { label: "Follow-up", variant: "secondary" },
-  ganha: { label: "Ganha", variant: "default" },
-  perdida: { label: "Perdida", variant: "destructive" },
+  rascunho: { label: "Rascunho", variant: "outline" },
+  enviada: { label: "Enviada", variant: "secondary" },
+  aceita: { label: "Aceita", variant: "default" },
+  recusada: { label: "Recusada", variant: "destructive" },
 };
 
 export default function PropostaEnvio() {
@@ -22,24 +20,6 @@ export default function PropostaEnvio() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: proposals = [], isLoading } = useProposals({ searchTerm: search });
-
-  // Fetch which proposals have saved PDFs
-  const proposalIds = proposals.map((p) => p.id);
-  const { data: savedDocs = [] } = useQuery({
-    queryKey: ["proposal-documents", "badge", proposalIds],
-    queryFn: async () => {
-      if (proposalIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("proposal_documents")
-        .select("proposal_id")
-        .in("proposal_id", proposalIds);
-      if (error) throw error;
-      return (data || []).map((d) => d.proposal_id);
-    },
-    enabled: proposalIds.length > 0,
-  });
-
-  const savedSet = new Set(savedDocs);
 
   return (
     <div className="space-y-6">
@@ -75,28 +55,26 @@ export default function PropostaEnvio() {
               <TableHead>Contato</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Criada em</TableHead>
-              <TableHead>PDF</TableHead>
               <TableHead className="text-right">Ação</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   Carregando propostas...
                 </TableCell>
               </TableRow>
             ) : proposals.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   Nenhuma proposta encontrada.
                 </TableCell>
               </TableRow>
             ) : (
               proposals.map((proposal) => {
                 const lead = proposal.leads;
-                const status = statusLabels[proposal.status] || statusLabels.aberta;
-                const hasPdf = savedSet.has(proposal.id);
+                const status = statusLabels[proposal.status ?? "rascunho"] || statusLabels.rascunho;
                 return (
                   <TableRow key={proposal.id}>
                     <TableCell className="font-medium">{lead?.nome || "—"}</TableCell>
@@ -107,14 +85,7 @@ export default function PropostaEnvio() {
                       <Badge variant={status.variant}>{status.label}</Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {new Date(proposal.criado_em).toLocaleDateString("pt-BR")}
-                    </TableCell>
-                    <TableCell>
-                      {hasPdf && (
-                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary">
-                          PDF salvo
-                        </Badge>
-                      )}
+                      {new Date(proposal.created_at).toLocaleDateString("pt-BR")}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
