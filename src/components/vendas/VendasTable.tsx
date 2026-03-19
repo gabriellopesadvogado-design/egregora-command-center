@@ -200,7 +200,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
     try {
       // Call edge function for status + followup cleanup
       const { error: fnError } = await supabase.functions.invoke("set-deal-outcome", {
-        body: { meeting_id: winModalMeeting.id, outcome: "ganha" },
+        body: { meeting_id: winModalMeeting.id, outcome: "fechado" },
       });
       if (fnError) throw fnError;
 
