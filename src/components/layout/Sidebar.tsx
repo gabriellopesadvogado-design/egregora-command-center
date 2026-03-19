@@ -17,6 +17,7 @@ import {
   ClipboardCheck,
   DollarSign,
   FileOutput,
+  Kanban,
 } from "lucide-react";
 import astraLogo from "@/assets/astra-logo.png";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const navigation = [
   { name: "Follow-ups", href: "/followup", icon: ClipboardCheck, roles: ["admin", "gestor", "closer"] },
   { name: "Forecast", href: "/forecast", icon: TrendingUp, roles: ["admin", "gestor", "closer"] },
   { name: "Leads", href: "/leads", icon: Users, roles: ["admin", "gestor", "sdr"] },
+  { name: "Pipeline", href: "/pipeline", icon: Kanban, roles: ["admin", "gestor", "sdr", "closer"] },
   { name: "Reuniões", href: "/meetings", icon: Calendar, roles: ["admin", "gestor", "sdr", "closer"] },
   { name: "Propostas", href: "/proposals", icon: FileText, roles: ["admin", "gestor", "closer"] },
   { name: "Envio de Propostas", href: "/propostaenvio", icon: FileOutput, roles: ["admin", "gestor", "closer"] },
