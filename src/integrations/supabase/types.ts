@@ -1010,7 +1010,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       crm_canal_entrega: "texto" | "audio" | "texto_e_audio"
