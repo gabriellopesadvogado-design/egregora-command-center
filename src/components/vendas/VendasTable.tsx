@@ -682,7 +682,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                   
                   <TableCell>
                     <QualificacaoSelect
-                      value={meeting.avaliacao_reuniao}
+                      value={meeting.avaliacao_reuniao as any}
                       onValueChange={(value) => handleQualificacaoChange(meeting.id, value, meeting)}
                       disabled={updateMeeting.isPending}
                     />
