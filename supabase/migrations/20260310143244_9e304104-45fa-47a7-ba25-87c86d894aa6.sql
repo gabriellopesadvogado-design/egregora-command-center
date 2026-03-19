@@ -1,0 +1,1 @@
+ALTER TABLE public.meetings ADD COLUMN primeiro_followup_em date;
