@@ -1,39 +1,28 @@
 
 
-## Fix Remaining Build Errors
+## Create Admin User
 
-7 files need fixes across 5 categories.
+### What needs to happen
 
-### 1. `src/components/ui/resizable.tsx` — Wrong imports
-The installed `react-resizable-panels` package uses `*` namespace import, not named exports `Panel`/`PanelGroup`/`PanelResizeHandle`. Switch to `import * as ResizablePrimitive from "react-resizable-panels"` and use `ResizablePrimitive.Panel`, etc.
+1. **Update `create-admin-user` edge function** — it currently references old tables (`profiles`, `user_roles`). Must update to use `core_users` with `cargo = 'admin'`. Also remove the `ADMIN_BOOTSTRAP_TOKEN` requirement (not configured) and use a hardcoded one-time setup token instead.
 
-### 2. `src/components/users/CreateUserModal.tsx` — Zod schema vs type mismatch
-The Zod schema defines `role: z.string()` but `CreateUserFormData` has `role: "sdr" | "closer"`. Fix: use `z.enum(["sdr", "closer"])` in the schema and remove the separate interface — use `z.infer` instead.
+2. **Add INSERT RLS policy on `core_users`** — currently users can't insert into `core_users`. The edge function uses the service role key so this isn't strictly needed, but we should ensure the function inserts the row after creating the auth user.
 
-### 3. `src/components/users/EditUserModal.tsx` — `role` type mismatch (line 66)
-`useUpdateUserRole` expects `role: "sdr" | "closer"` but `data.cargo` is `string`. Fix: update `UpdateRoleData` in `useUsers.ts` to accept `string` for `role`, or cast in the modal. Also update the Zod schema to use `z.enum`.
+3. **Deploy the edge function** and invoke it with:
+   - email: `gabriellopes@egregoramigration.com.br`
+   - password: `Egregor@2026`
+   - nome: `Gabriel Lopes`
+   - cargo: `admin`
 
-### 4. `src/pages/Meetings.tsx` + `src/pages/Proposals.tsx` — `u.role` → `u.cargo`
-Lines 56-57 and 61-62 respectively filter users by `u.role`. Change to `u.cargo`.
+### Technical details
 
-### 5. `src/pages/Notificacoes.tsx` — `enviado_em` → `created_at`
-Lines 132 and 134 reference `notification.enviado_em`. Change to `notification.created_at`.
+The updated `create-admin-user` function will:
+- Use `SUPABASE_SERVICE_ROLE_KEY` (already configured) to create the auth user via `supabase.auth.admin.createUser()`
+- Insert/upsert a row in `core_users` with `cargo = 'admin'`
+- Skip bootstrap token validation (one-time setup)
 
-### 6. `src/pages/PropostaEnvio.tsx` — `proposal_documents` table doesn't exist
-The query references a `proposal_documents` table that doesn't exist in the schema. Remove the saved PDF badge query entirely (or replace with a simple placeholder). The `statusLabels` also use old values — update to match `crm_proposals.status` values (`rascunho`, `enviada`, `aceita`, `recusada`).
-
-### 7. `src/hooks/useUsers.ts` — Widen `UpdateRoleData.role` type
-Change from `"sdr" | "closer"` to `string` so it accepts any cargo value from the DB.
-
-### Files changed (7)
-| File | Fix |
-|------|-----|
-| `src/components/ui/resizable.tsx` | Use `* as ResizablePrimitive` import |
-| `src/components/users/CreateUserModal.tsx` | Use `z.enum` + `z.infer` |
-| `src/components/users/EditUserModal.tsx` | Use `z.enum` for cargo |
-| `src/hooks/useUsers.ts` | Widen `role` type to `string` |
-| `src/pages/Meetings.tsx` | `role` → `cargo` |
-| `src/pages/Proposals.tsx` | `role` → `cargo` |
-| `src/pages/Notificacoes.tsx` | `enviado_em` → `created_at` |
-| `src/pages/PropostaEnvio.tsx` | Remove `proposal_documents` query, update status labels |
+### Files changed
+| File | Change |
+|------|--------|
+| `supabase/functions/create-admin-user/index.ts` | Update to use `core_users` table, remove bootstrap token |
 
