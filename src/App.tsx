@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PreVenda from "./pages/PreVenda";
 import Pipeline from "./pages/Pipeline";
+import Reativacao from "./pages/Reativacao";
 import Vendas from "./pages/Vendas";
 import Leads from "./pages/Leads";
 import Notificacoes from "./pages/Notificacoes";
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/notificacoes" element={<Notificacoes />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/pipeline" element={<Pipeline />} />
+              <Route path="/reativacao" element={<Reativacao />} />
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/proposals" element={<Proposals />} />
               <Route path="/targets" element={<Targets />} />
