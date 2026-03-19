@@ -546,6 +546,30 @@ export type Database = {
           },
         ]
       }
+      crm_motivos_perda: {
+        Row: {
+          created_at: string | null
+          dias_minimos_reativacao: number
+          id: string
+          motivo: string
+          reativavel: boolean
+        }
+        Insert: {
+          created_at?: string | null
+          dias_minimos_reativacao?: number
+          id?: string
+          motivo: string
+          reativavel?: boolean
+        }
+        Update: {
+          created_at?: string | null
+          dias_minimos_reativacao?: number
+          id?: string
+          motivo?: string
+          reativavel?: boolean
+        }
+        Relationships: []
+      }
       crm_notas: {
         Row: {
           conteudo: string
@@ -640,6 +664,53 @@ export type Database = {
           },
           {
             foreignKeyName: "crm_proposals_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "crm_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_reativacoes: {
+        Row: {
+          created_at: string | null
+          data_perda: string
+          data_reativacao: string | null
+          faixa_reativacao: string
+          id: string
+          meeting_id: string
+          motivo_perda_original: string
+          notas_reativacao: string | null
+          responsavel_reativacao_id: string
+          resultado: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_perda: string
+          data_reativacao?: string | null
+          faixa_reativacao: string
+          id?: string
+          meeting_id: string
+          motivo_perda_original: string
+          notas_reativacao?: string | null
+          responsavel_reativacao_id: string
+          resultado?: string
+        }
+        Update: {
+          created_at?: string | null
+          data_perda?: string
+          data_reativacao?: string | null
+          faixa_reativacao?: string
+          id?: string
+          meeting_id?: string
+          motivo_perda_original?: string
+          notas_reativacao?: string | null
+          responsavel_reativacao_id?: string
+          resultado?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_reativacoes_meeting_id_fkey"
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "crm_meetings"
