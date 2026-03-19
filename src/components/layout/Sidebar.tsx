@@ -17,6 +17,7 @@ import {
   ClipboardCheck,
   DollarSign,
   FileOutput,
+  Kanban,
 } from "lucide-react";
 import astraLogo from "@/assets/astra-logo.png";
 import { Button } from "@/components/ui/button";
