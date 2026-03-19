@@ -1,63 +1,78 @@
-import { format } from "date-fns";
+import { format, isToday, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Phone } from "lucide-react";
+import { Eye, CalendarPlus, XCircle, ArrowUpDown, MessageCircle } from "lucide-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { LeadWithMeeting, MeetingStatus, AvaliacaoReuniao, PlataformaOrigem } from "@/hooks/useLeadsWithMeetings";
+import type { LeadWithStatus, LeadStatus } from "@/hooks/useLeadsPage";
 
 interface LeadsTableProps {
-  leads: LeadWithMeeting[];
+  leads: LeadWithStatus[];
   isLoading: boolean;
-  onAddPhone?: (leadName: string, meetingId: string) => void;
+  canAct: boolean;
+  onCreateMeeting: (lead: LeadWithStatus) => void;
+  onMarkNotEligible: (lead: LeadWithStatus) => void;
+  onViewDetails: (lead: LeadWithStatus) => void;
+  sortField: string;
+  sortAsc: boolean;
+  onSort: (field: string) => void;
 }
 
-const statusConfig: Record<string, { emoji: string; label: string; className: string }> = {
-  novo_lead: { emoji: "🆕", label: "Novo", className: "bg-muted text-muted-foreground" },
-  qualificado: { emoji: "✅", label: "Qualificado", className: "bg-info/20 text-info" },
-  nao_elegivel: { emoji: "🚫", label: "Não Elegível", className: "bg-warning/20 text-warning" },
-  elegivel: { emoji: "👍", label: "Elegível", className: "bg-success/20 text-success" },
-  reuniao_agendada: { emoji: "🕐", label: "Agendada", className: "bg-info/20 text-info" },
-  reuniao_realizada: { emoji: "✅", label: "Realizada", className: "bg-success/20 text-success" },
-  proposta_enviada: { emoji: "🚀", label: "Proposta", className: "bg-primary/20 text-primary" },
-  followup_ativo: { emoji: "📞", label: "Follow-up", className: "bg-warning/20 text-warning" },
-  contrato_enviado: { emoji: "📄", label: "Contrato", className: "bg-info/20 text-info" },
-  fechado: { emoji: "🏆", label: "Fechado", className: "bg-success/20 text-success" },
-  perdido: { emoji: "💔", label: "Perdido", className: "bg-destructive/20 text-destructive" },
+const statusConfig: Record<LeadStatus, { label: string; className: string }> = {
+  sem_reuniao: { label: "Sem reunião", className: "bg-destructive/15 text-destructive border-destructive/30" },
+  em_pipeline: { label: "Em pipeline", className: "bg-primary/15 text-primary border-primary/30" },
+  nao_elegivel: { label: "Não elegível", className: "bg-muted text-muted-foreground border-border" },
+  fechado: { label: "Fechado", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
+  perdido: { label: "Perdido", className: "bg-muted text-muted-foreground border-border" },
 };
 
-const qualificacaoConfig: Record<AvaliacaoReuniao, { emoji: string; label: string }> = {
-  boa: { emoji: "🌟", label: "Muito Bom" },
-  neutra: { emoji: "👍", label: "Bom" },
-  ruim: { emoji: "👎", label: "Ruim" },
+const origemConfig: Record<string, { label: string; className: string }> = {
+  meta_ads: { label: "Meta Ads", className: "bg-primary/15 text-primary" },
+  google_ads: { label: "Google Ads", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
+  indicacao: { label: "Indicação", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+  organico: { label: "Orgânico", className: "bg-muted text-muted-foreground" },
+  hubspot_direto: { label: "HubSpot", className: "bg-orange-500/15 text-orange-700 dark:text-orange-400" },
+  reativacao: { label: "Reativação", className: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
 };
 
-const fonteLabels: Record<PlataformaOrigem, string> = {
-  google: "Google",
-  meta: "Meta",
-  blog: "Blog",
-  organico: "Orgânico",
-  indicacao: "Indicação",
-  reativacao: "Reativação",
-  outros: "Outro",
+const tipoLabels: Record<string, string> = {
+  nacionalidade_portuguesa: "Nac. Portuguesa",
+  residencia_brasileira: "Res. Brasileira",
+  outro: "Outro",
 };
 
-export function LeadsTable({ leads, isLoading, onAddPhone }: LeadsTableProps) {
+function SortableHead({ label, field, sortField, sortAsc, onSort }: {
+  label: string; field: string; sortField: string; sortAsc: boolean; onSort: (f: string) => void;
+}) {
+  return (
+    <TableHead className="font-semibold cursor-pointer select-none" onClick={() => onSort(field)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${sortField === field ? "text-foreground" : "text-muted-foreground/50"}`} />
+      </span>
+    </TableHead>
+  );
+}
+
+function formatEntrada(dateStr: string | null) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isToday(d)) return formatDistanceToNow(d, { addSuffix: true, locale: ptBR });
+  return format(d, "dd MMM yyyy", { locale: ptBR });
+}
+
+export function LeadsTable({
+  leads, isLoading, canAct, onCreateMeeting, onMarkNotEligible, onViewDetails,
+  sortField, sortAsc, onSort,
+}: LeadsTableProps) {
   if (isLoading) {
     return (
       <div className="space-y-2">
-        {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
+        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
       </div>
     );
   }
@@ -67,14 +82,14 @@ export function LeadsTable({ leads, isLoading, onAddPhone }: LeadsTableProps) {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="font-semibold">Nome do Lead</TableHead>
-            <TableHead className="w-[100px] font-semibold">Origem</TableHead>
-            <TableHead className="w-[130px] font-semibold">Status</TableHead>
-            <TableHead className="w-[150px] font-semibold">Responsável</TableHead>
-            <TableHead className="w-[130px] font-semibold">Qualificação</TableHead>
-            <TableHead className="w-[110px] font-semibold">Última Reunião</TableHead>
-            <TableHead className="min-w-[180px] font-semibold">Observação</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
+            <SortableHead label="Nome" field="nome" sortField={sortField} sortAsc={sortAsc} onSort={onSort} />
+            <TableHead className="w-[120px] font-semibold">WhatsApp</TableHead>
+            <TableHead className="w-[110px] font-semibold">Origem</TableHead>
+            <TableHead className="w-[100px] font-semibold">Canal</TableHead>
+            <TableHead className="w-[130px] font-semibold">Tipo Interesse</TableHead>
+            <SortableHead label="Entrada" field="created_at" sortField={sortField} sortAsc={sortAsc} onSort={onSort} />
+            <TableHead className="w-[120px] font-semibold">Status</TableHead>
+            <TableHead className="w-[130px] font-semibold text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -86,79 +101,92 @@ export function LeadsTable({ leads, isLoading, onAddPhone }: LeadsTableProps) {
             </TableRow>
           ) : (
             leads.map((lead) => {
-              const status = statusConfig[lead.status] || statusConfig.novo_lead;
-              const qualificacao = lead.qualificacao ? qualificacaoConfig[lead.qualificacao] : null;
-              
+              const status = statusConfig[lead.leadStatus];
+              const origem = lead.origem ? origemConfig[lead.origem] : null;
+
               return (
                 <TableRow key={lead.id} className="hover:bg-muted/30">
-                  <TableCell className="font-medium">{lead.nome}</TableCell>
-                  
-                  <TableCell className="text-sm text-muted-foreground">
-                    {lead.fonte ? fonteLabels[lead.fonte] : "—"}
+                  <TableCell className="font-medium">
+                    <button
+                      className="text-left hover:underline text-foreground"
+                      onClick={() => onViewDetails(lead)}
+                    >
+                      {lead.nome}
+                    </button>
                   </TableCell>
-                  
-                  <TableCell>
-                    <Badge className={status.className}>
-                      {status.emoji} {status.label}
-                    </Badge>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{lead.responsavel}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {lead.responsavelTipo === "closer" ? "Closer" : "SDR"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    {qualificacao ? (
-                      <span className="text-sm">
-                        {qualificacao.emoji} {qualificacao.label}
+
+                  <TableCell className="text-sm">
+                    {lead.whatsapp ? (
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <MessageCircle className="h-3.5 w-3.5 text-emerald-500" />
+                        {lead.whatsapp}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  
-                  <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(lead.dataUltimaReuniao), "dd/MM/yy", { locale: ptBR })}
+
+                  <TableCell>
+                    {origem ? (
+                      <Badge variant="outline" className={origem.className}>{origem.label}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
                   </TableCell>
-                  
+
+                  <TableCell className="text-sm text-muted-foreground capitalize">
+                    {lead.canal || "—"}
+                  </TableCell>
+
                   <TableCell className="text-sm text-muted-foreground">
-                    {lead.observacao || "—"}
+                    {lead.tipo_interesse ? tipoLabels[lead.tipo_interesse] || lead.tipo_interesse : "—"}
+                  </TableCell>
+
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatEntrada(lead.created_at)}
                   </TableCell>
 
                   <TableCell>
-                    {!lead.telefone && onAddPhone ? (
+                    <Badge variant="outline" className={status.className}>{status.label}</Badge>
+                  </TableCell>
+
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      {canAct && lead.leadStatus === "sem_reuniao" && (
+                        <>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="default" className="h-7 w-7" onClick={() => onCreateMeeting(lead)}>
+                                  <CalendarPlus className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Criar Reunião</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => onMarkNotEligible(lead)}>
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Não Elegível</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </>
+                      )}
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-warning hover:text-warning"
-                              onClick={() => onAddPhone(lead.nome, lead.meetingId)}
-                            >
-                              <Phone className="h-4 w-4" />
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onViewDetails(lead)}>
+                              <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Adicionar telefone</TooltipContent>
+                          <TooltipContent>Ver detalhes</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    ) : lead.telefone ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-muted-foreground">
-                              <Phone className="h-4 w-4 inline" />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>{lead.telefone}</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
