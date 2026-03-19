@@ -200,7 +200,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
     try {
       // Call edge function for status + followup cleanup
       const { error: fnError } = await supabase.functions.invoke("set-deal-outcome", {
-        body: { meeting_id: winModalMeeting.id, outcome: "ganha" },
+        body: { meeting_id: winModalMeeting.id, outcome: "fechado" },
       });
       if (fnError) throw fnError;
 
@@ -208,8 +208,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
       await updateMeeting.mutateAsync({
         id: winModalMeeting.id,
         valor_fechado: valorFechado,
-        caixa_gerado: caixaGerado,
-        fechado_em: new Date().toISOString(),
+        data_fechamento: new Date().toISOString(),
       });
 
       // Invalidate followup queries
@@ -649,7 +648,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                     {meeting.status === "fechado" && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-success font-medium">🏆 Fechado</span>
-                        {(role === "admin" || role === "manager") && (
+                        {(role === "admin" || role === "gestor") && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -665,7 +664,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                     {meeting.status === "perdido" && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-destructive font-medium">💔 Perdido</span>
-                        {(role === "admin" || role === "manager") && (
+                        {(role === "admin" || role === "gestor") && (
                           <Button
                             size="sm"
                             variant="ghost"

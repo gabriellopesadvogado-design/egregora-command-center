@@ -11,7 +11,7 @@ export function useClosers() {
       const { data, error } = await supabase
         .from("core_users")
         .select("*")
-        .in("cargo", ["closer", "admin", "manager"])
+        .in("cargo", ["closer", "admin", "gestor"])
         .eq("ativo", true)
         .order("nome");
 

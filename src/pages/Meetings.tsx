@@ -54,7 +54,7 @@ export default function Meetings() {
 
   const { data: users = [] } = useAllProfiles();
   const sdrs = users.filter((u) => u.cargo === "sdr" && u.ativo);
-  const closers = users.filter((u) => ["closer", "admin", "manager"].includes(u.cargo) && u.ativo);
+  const closers = users.filter((u) => ["closer", "admin", "gestor"].includes(u.cargo) && u.ativo);
 
   const dateRange = getDateRangeForPeriod(period);
 
@@ -118,8 +118,8 @@ export default function Meetings() {
     try {
       await updateMeeting.mutateAsync({
         id: selectedMeeting.id,
-        status: "agendada",
-        inicio_em: novaData.toISOString(),
+        status: "reuniao_agendada",
+        data_reuniao: novaData.toISOString(),
       });
 
 
@@ -137,9 +137,9 @@ export default function Meetings() {
     try {
       await updateMeeting.mutateAsync({
         id: selectedMeeting.id,
-        status: "perdida",
+        status: "perdido",
         motivo_perda: motivoPerda,
-        fechado_em: new Date().toISOString(),
+        data_fechamento: new Date().toISOString(),
       });
 
 

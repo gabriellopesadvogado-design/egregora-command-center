@@ -13,7 +13,7 @@ export default function Users() {
   const { profile } = useAuth();
 
   // Only allow admin and manager to access this page
-  if (profile && profile.role !== "admin" && profile.role !== "manager") {
+  if (profile && profile.role !== "admin" && profile.role !== "gestor") {
     return <Navigate to="/dashboard" replace />;
   }
 
