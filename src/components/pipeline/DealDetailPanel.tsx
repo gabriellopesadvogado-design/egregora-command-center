@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
@@ -12,10 +11,10 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useUpdateMeeting, type Meeting } from "@/hooks/useMeetings";
+import { NotasAtividades } from "@/components/shared/NotasAtividades";
 import { toast } from "sonner";
 
 interface DealDetailPanelProps {
@@ -44,19 +43,8 @@ const formatCurrency = (v: number | null | undefined) =>
 export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps) {
   const queryClient = useQueryClient();
   const updateMeeting = useUpdateMeeting();
-  const [notas, setNotas] = useState("");
-  const [notasDirty, setNotasDirty] = useState(false);
-
-  // Sync notas when meeting changes
   const meetingId = meeting?.id;
-  useState(() => {
-    if (meeting) {
-      setNotas(meeting.notas || "");
-      setNotasDirty(false);
-    }
-  });
 
-  // Follow-up steps
   const { data: followups = [] } = useQuery({
     queryKey: ["followups", meetingId],
     queryFn: async () => {
@@ -88,16 +76,8 @@ export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps
     enabled: !!meetingId,
   });
 
-  const handleSaveNotas = async () => {
-    if (!meeting) return;
-    try {
-      await updateMeeting.mutateAsync({ id: meeting.id, notas });
-      setNotasDirty(false);
-      toast.success("Notas salvas");
-    } catch {
-      toast.error("Erro ao salvar notas");
-    }
-  };
+
+
 
   const handleMarkSent = async (stepId: string) => {
     const { error } = await supabase
@@ -247,21 +227,10 @@ export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps
             </>
           )}
 
-          {/* Notas */}
-          <section className="space-y-2">
-            <h4 className="text-sm font-semibold text-muted-foreground">Notas</h4>
-            <Textarea
-              value={notas}
-              onChange={(e) => { setNotas(e.target.value); setNotasDirty(true); }}
-              rows={4}
-              placeholder="Adicionar notas..."
-            />
-            {notasDirty && (
-              <Button size="sm" onClick={handleSaveNotas} disabled={updateMeeting.isPending}>
-                Salvar notas
-              </Button>
-            )}
-          </section>
+          {/* Notas e Atividades */}
+          <NotasAtividades meetingId={meeting.id} />
+
+          <Separator />
 
           {/* HubSpot link */}
           {meeting.hubspot_deal_id && (

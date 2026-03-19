@@ -546,6 +546,44 @@ export type Database = {
           },
         ]
       }
+      crm_notas: {
+        Row: {
+          conteudo: string
+          created_at: string | null
+          id: string
+          meeting_id: string
+          sincronizado_hubspot: boolean | null
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string | null
+          id?: string
+          meeting_id: string
+          sincronizado_hubspot?: boolean | null
+          tipo?: string
+          user_id: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string | null
+          id?: string
+          meeting_id?: string
+          sincronizado_hubspot?: boolean | null
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_notas_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "crm_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_proposals: {
         Row: {
           created_at: string | null
