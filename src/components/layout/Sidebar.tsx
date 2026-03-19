@@ -18,6 +18,7 @@ import {
   DollarSign,
   FileOutput,
   Kanban,
+  RefreshCw,
 } from "lucide-react";
 import astraLogo from "@/assets/astra-logo.png";
 import { Button } from "@/components/ui/button";
