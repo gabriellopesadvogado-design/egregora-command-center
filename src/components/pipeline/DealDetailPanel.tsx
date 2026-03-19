@@ -44,8 +44,8 @@ const formatCurrency = (v: number | null | undefined) =>
 export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps) {
   const queryClient = useQueryClient();
   const updateMeeting = useUpdateMeeting();
+  const meetingId = meeting?.id;
 
-  // Follow-up steps
   const { data: followups = [] } = useQuery({
     queryKey: ["followups", meetingId],
     queryFn: async () => {
