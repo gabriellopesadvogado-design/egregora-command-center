@@ -228,21 +228,10 @@ export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps
             </>
           )}
 
-          {/* Notas */}
-          <section className="space-y-2">
-            <h4 className="text-sm font-semibold text-muted-foreground">Notas</h4>
-            <Textarea
-              value={notas}
-              onChange={(e) => { setNotas(e.target.value); setNotasDirty(true); }}
-              rows={4}
-              placeholder="Adicionar notas..."
-            />
-            {notasDirty && (
-              <Button size="sm" onClick={handleSaveNotas} disabled={updateMeeting.isPending}>
-                Salvar notas
-              </Button>
-            )}
-          </section>
+          {/* Notas e Atividades */}
+          <NotasAtividades meetingId={meeting.id} />
+
+          <Separator />
 
           {/* HubSpot link */}
           {meeting.hubspot_deal_id && (
