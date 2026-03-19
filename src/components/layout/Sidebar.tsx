@@ -23,19 +23,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home, roles: ["admin", "manager", "sdr", "closer"] },
-  { name: "Pré-Venda", href: "/pre-venda", icon: PhoneCall, roles: ["admin", "manager", "sdr", "closer"] },
-  { name: "Vendas", href: "/vendas", icon: Rocket, roles: ["admin", "manager", "closer"] },
-  { name: "Follow-ups", href: "/followup", icon: ClipboardCheck, roles: ["admin", "manager", "closer"] },
-  { name: "Forecast", href: "/forecast", icon: TrendingUp, roles: ["admin", "manager", "closer"] },
-  { name: "Leads", href: "/leads", icon: Users, roles: ["admin", "manager", "sdr"] },
-  { name: "Reuniões", href: "/meetings", icon: Calendar, roles: ["admin", "manager", "sdr", "closer"] },
-  { name: "Propostas", href: "/proposals", icon: FileText, roles: ["admin", "manager", "closer"] },
-  { name: "Envio de Propostas", href: "/propostaenvio", icon: FileOutput, roles: ["admin", "manager", "closer"] },
-  { name: "Metas", href: "/targets", icon: Target, roles: ["admin", "manager"] },
-  { name: "Relatórios IA", href: "/wbr-ai", icon: Sparkles, roles: ["admin", "manager"] },
-  { name: "ROI por Canal", href: "/roi", icon: DollarSign, roles: ["admin", "manager"] },
-  { name: "Notificações", href: "/notificacoes", icon: Bell, roles: ["admin", "manager", "sdr", "closer"] },
+  { name: "Dashboard", href: "/dashboard", icon: Home, roles: ["admin", "gestor", "sdr", "closer"] },
+  { name: "Pré-Venda", href: "/pre-venda", icon: PhoneCall, roles: ["admin", "gestor", "sdr", "closer"] },
+  { name: "Vendas", href: "/vendas", icon: Rocket, roles: ["admin", "gestor", "closer"] },
+  { name: "Follow-ups", href: "/followup", icon: ClipboardCheck, roles: ["admin", "gestor", "closer"] },
+  { name: "Forecast", href: "/forecast", icon: TrendingUp, roles: ["admin", "gestor", "closer"] },
+  { name: "Leads", href: "/leads", icon: Users, roles: ["admin", "gestor", "sdr"] },
+  { name: "Reuniões", href: "/meetings", icon: Calendar, roles: ["admin", "gestor", "sdr", "closer"] },
+  { name: "Propostas", href: "/proposals", icon: FileText, roles: ["admin", "gestor", "closer"] },
+  { name: "Envio de Propostas", href: "/propostaenvio", icon: FileOutput, roles: ["admin", "gestor", "closer"] },
+  { name: "Metas", href: "/targets", icon: Target, roles: ["admin", "gestor"] },
+  { name: "Relatórios IA", href: "/wbr-ai", icon: Sparkles, roles: ["admin", "gestor"] },
+  { name: "ROI por Canal", href: "/roi", icon: DollarSign, roles: ["admin", "gestor"] },
+  { name: "Notificações", href: "/notificacoes", icon: Bell, roles: ["admin", "gestor", "sdr", "closer"] },
 ];
 
 import { Database } from "lucide-react";
