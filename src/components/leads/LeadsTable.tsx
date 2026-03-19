@@ -21,14 +21,18 @@ interface LeadsTableProps {
   onAddPhone?: (leadName: string, meetingId: string) => void;
 }
 
-const statusConfig: Record<MeetingStatus, { emoji: string; label: string; className: string }> = {
-  agendada: { emoji: "🕐", label: "Agendada", className: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300" },
-  aconteceu: { emoji: "✅", label: "Realizada", className: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" },
-  proposta_enviada: { emoji: "🚀", label: "Proposta", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300" },
-  ganha: { emoji: "🏆", label: "Ganha", className: "bg-success/20 text-success dark:bg-success/30" },
-  perdida: { emoji: "💔", label: "Perdida", className: "bg-destructive/20 text-destructive" },
-  no_show: { emoji: "🚫", label: "No Show", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300" },
-  cancelada: { emoji: "🚫", label: "Cancelada", className: "bg-muted text-muted-foreground" },
+const statusConfig: Record<string, { emoji: string; label: string; className: string }> = {
+  novo_lead: { emoji: "🆕", label: "Novo", className: "bg-muted text-muted-foreground" },
+  qualificado: { emoji: "✅", label: "Qualificado", className: "bg-info/20 text-info" },
+  nao_elegivel: { emoji: "🚫", label: "Não Elegível", className: "bg-warning/20 text-warning" },
+  elegivel: { emoji: "👍", label: "Elegível", className: "bg-success/20 text-success" },
+  reuniao_agendada: { emoji: "🕐", label: "Agendada", className: "bg-info/20 text-info" },
+  reuniao_realizada: { emoji: "✅", label: "Realizada", className: "bg-success/20 text-success" },
+  proposta_enviada: { emoji: "🚀", label: "Proposta", className: "bg-primary/20 text-primary" },
+  followup_ativo: { emoji: "📞", label: "Follow-up", className: "bg-warning/20 text-warning" },
+  contrato_enviado: { emoji: "📄", label: "Contrato", className: "bg-info/20 text-info" },
+  fechado: { emoji: "🏆", label: "Fechado", className: "bg-success/20 text-success" },
+  perdido: { emoji: "💔", label: "Perdido", className: "bg-destructive/20 text-destructive" },
 };
 
 const qualificacaoConfig: Record<AvaliacaoReuniao, { emoji: string; label: string }> = {
