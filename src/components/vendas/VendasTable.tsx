@@ -790,7 +790,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
         isLoading={outcomeLoading || updateMeeting.isPending}
       />
 
-      <VendasLossModal
+      <MotivoPerdaModal
         open={!!lossModalMeeting}
         onClose={() => setLossModalMeeting(null)}
         onConfirm={handleLoss}
