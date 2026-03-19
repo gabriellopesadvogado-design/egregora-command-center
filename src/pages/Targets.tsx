@@ -18,7 +18,7 @@ export default function Targets() {
   }
 
   // Verificar se usuario e admin ou manager
-  if (role !== "admin" && role !== "manager") {
+  if (role !== "admin" && role !== "gestor") {
     return <Navigate to="/dashboard" replace />;
   }
 

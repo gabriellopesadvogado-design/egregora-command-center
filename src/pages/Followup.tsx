@@ -83,7 +83,7 @@ import { ptBR } from "date-fns/locale";
 
 export default function Followup() {
   const { profile, role } = useAuth();
-  const isAdminManager = role === "admin" || role === "manager";
+  const isAdminManager = role === "admin" || role === "gestor";
   const [selectedCloserId, setSelectedCloserId] = useState<string | undefined>(
     isAdminManager ? undefined : profile?.id
   );

@@ -41,7 +41,7 @@ const navigation = [
 import { Database } from "lucide-react";
 
 const adminNavigation = [
-  { name: "Usuários", href: "/users", icon: Settings, roles: ["admin", "manager"] },
+  { name: "Usuários", href: "/users", icon: Settings, roles: ["admin", "gestor"] },
   { name: "Migração Follow-up", href: "/followup/migracao", icon: Database, roles: ["admin"] },
 ];
 

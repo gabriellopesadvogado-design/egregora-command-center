@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type AppRole = "admin" | "manager" | "sdr" | "closer";
+type AppRole = "admin" | "gestor" | "sdr" | "closer" | "analista_processos";
 
 interface Profile {
   id: string;

@@ -18,7 +18,7 @@ function getSlotColor(slot: CloserSlot): string {
   }
   
   // Vermelho - horário passou mas não foi realizada (agendada ou no_show)
-  if (hasPassedTime && (slot.status === "agendada" || slot.status === "no_show")) {
+  if (hasPassedTime && slot.status === "reuniao_agendada") {
     return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200";
   }
   

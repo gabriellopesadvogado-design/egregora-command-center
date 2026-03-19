@@ -73,9 +73,9 @@ export default function Proposals() {
 
   const { data: meetings = [], isLoading } = useMeetings(filters);
 
-  // Filtra apenas meetings com status proposta_enviada, ganha ou perdida
+  // Filtra apenas meetings com status proposta_enviada, fechado ou perdido
   const propostas = meetings.filter((m) =>
-    ["proposta_enviada", "ganha", "perdida"].includes(m.status)
+    ["proposta_enviada", "fechado", "perdido"].includes(m.status)
   );
 
   const stats = useProposalStats(propostas);

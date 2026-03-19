@@ -8,7 +8,7 @@ export function useCloserMeetings(
   
   // Admin e Manager veem todas as reuniões
   // Closers veem apenas as atribuídas a eles
-  const isAdminOrManager = role === "admin" || role === "manager";
+  const isAdminOrManager = role === "admin" || role === "gestor";
 
   return useMeetings({
     ...filters,

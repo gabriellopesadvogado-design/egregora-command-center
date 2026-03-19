@@ -363,7 +363,7 @@ export function ForecastTable({
                         )}
                       </TableCell>
                       <TableCell>
-                        {proposal.status === "ganha" ? (
+                        {proposal.status === "fechado" ? (
                           proposal.valor_fechado ? (
                             <Tooltip>
                               <TooltipTrigger>

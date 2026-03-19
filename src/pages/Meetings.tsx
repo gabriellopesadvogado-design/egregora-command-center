@@ -137,9 +137,9 @@ export default function Meetings() {
     try {
       await updateMeeting.mutateAsync({
         id: selectedMeeting.id,
-        status: "perdida",
+        status: "perdido",
         motivo_perda: motivoPerda,
-        fechado_em: new Date().toISOString(),
+        data_fechamento: new Date().toISOString(),
       });
 
 
