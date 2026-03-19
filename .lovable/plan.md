@@ -1,76 +1,39 @@
 
 
-## Fix Remaining TypeScript Errors — Component Layer
+## Fix Remaining Build Errors
 
-All errors stem from components using old field/enum names that no longer match the new `egregora-command-center` schema. The hooks layer was updated, but components still reference legacy values.
+7 files need fixes across 5 categories.
 
-### Root Causes & Fixes
+### 1. `src/components/ui/resizable.tsx` — Wrong imports
+The installed `react-resizable-panels` package uses `*` namespace import, not named exports `Panel`/`PanelGroup`/`PanelResizeHandle`. Switch to `import * as ResizablePrimitive from "react-resizable-panels"` and use `ResizablePrimitive.Panel`, etc.
 
-**1. Enum type references from DB (3 files)**
-`ForecastFilters.tsx` and `ReliabilityFilters.tsx` reference `Database["public"]["Enums"]["meeting_status"]`, `avaliacao_reuniao`, `plataforma_origem` — these don't exist. The DB enum is `crm_status`. Fix: use local string type aliases (already defined in hooks).
+### 2. `src/components/users/CreateUserModal.tsx` — Zod schema vs type mismatch
+The Zod schema defines `role: z.string()` but `CreateUserFormData` has `role: "sdr" | "closer"`. Fix: use `z.enum(["sdr", "closer"])` in the schema and remove the separate interface — use `z.infer` instead.
 
-- `src/components/forecast/ForecastFilters.tsx` — lines 26-28: replace with local types from hooks
-- `src/components/forecast/ReliabilityFilters.tsx` — lines 21-22: same fix
+### 3. `src/components/users/EditUserModal.tsx` — `role` type mismatch (line 66)
+`useUpdateUserRole` expects `role: "sdr" | "closer"` but `data.cargo` is `string`. Fix: update `UpdateRoleData` in `useUsers.ts` to accept `string` for `role`, or cast in the modal. Also update the Zod schema to use `z.enum`.
 
-**2. `role` → `cargo` (2 files)**
-`ForecastOverviewTab.tsx` and `ReliabilityTab.tsx` filter `u.role` but `core_users` has `cargo`.
+### 4. `src/pages/Meetings.tsx` + `src/pages/Proposals.tsx` — `u.role` → `u.cargo`
+Lines 56-57 and 61-62 respectively filter users by `u.role`. Change to `u.cargo`.
 
-**3. StatusToggle — old status values (1 file)**
-`StatusToggle.tsx` uses `agendada`, `aconteceu`, `no_show`, `cancelada`, `ganha`, `perdida`. Must map to new `crm_status` enum: `reuniao_agendada`, `reuniao_realizada`, `nao_elegivel`, `perdido`, `fechado`, `proposta_enviada`, `qualificado`, etc.
+### 5. `src/pages/Notificacoes.tsx` — `enviado_em` → `created_at`
+Lines 132 and 134 reference `notification.enviado_em`. Change to `notification.created_at`.
 
-**4. LeadsTable + ExportLeadsCsvButton — old status Records (2 files)**
-Same old status keys in `Record<MeetingStatus, ...>`. Update keys to `crm_status` values.
+### 6. `src/pages/PropostaEnvio.tsx` — `proposal_documents` table doesn't exist
+The query references a `proposal_documents` table that doesn't exist in the schema. Remove the saved PDF badge query entirely (or replace with a simple placeholder). The `statusLabels` also use old values — update to match `crm_proposals.status` values (`rascunho`, `enviada`, `aceita`, `recusada`).
 
-**5. Pipeline components — wrong Proposal fields (3 files)**
-`ProposalCard`, `PipelineColumn`, `PipelineBoard` reference `valor_proposto`, `valor_fechado`, `motivo_perda`, `closer`, `fechado_em`, `caixa_gerado`. The `crm_proposals` table has `valor` (not `valor_proposto`), and lacks `valor_fechado`/`motivo_perda`/`caixa_gerado`/`fechado_em`. Fix: map `valor` in the Proposal type, remove references to non-existent fields or add them to the type as optional enrichment.
+### 7. `src/hooks/useUsers.ts` — Widen `UpdateRoleData.role` type
+Change from `"sdr" | "closer"` to `string` so it accepts any cargo value from the DB.
 
-**6. CanceledMeetingsTable — old field names (1 file)**
-References `inicio_em` → `data_reuniao`, `fonte_lead` → `origem` (from lead), `observacao` → `notas`, `leads?.plataforma_origem` → `leads?.origem`.
-
-**7. NotificationDropdown — `enviado_em` → `created_at` (1 file)**
-
-**8. MeetingsTable — old status comparisons + field names (1 file)**
-`"aconteceu"` → `"reuniao_realizada"`, `"agendada"` → `"reuniao_agendada"`, `inicio_em` → `data_reuniao`.
-
-**9. VendasTable — old status values + field names (1 file)**
-Same pattern: old status strings and `inicio_em`/`fonte_lead`/`observacao` references.
-
-**10. Calendar.tsx — `IconLeft`/`IconRight` deprecated (1 file)**
-Newer `react-day-picker` uses different component names. Fix by updating to current API.
-
-**11. Chart.tsx — `payload`/`label` type errors (1 file)**
-Recharts tooltip type mismatch. Fix with type assertion.
-
-### Files to modify (16 total)
-
-| File | Changes |
-|------|---------|
-| `src/components/forecast/ForecastFilters.tsx` | Local type aliases, fix STATUS_OPTIONS values |
-| `src/components/forecast/ReliabilityFilters.tsx` | Local type aliases |
-| `src/components/forecast/ForecastOverviewTab.tsx` | `role` → `cargo` |
-| `src/components/forecast/ReliabilityTab.tsx` | `role` → `cargo` |
-| `src/components/pre-venda/StatusToggle.tsx` | Rewrite statusConfig with new crm_status values |
-| `src/components/pre-venda/MeetingsTable.tsx` | Old status → new, `inicio_em` → `data_reuniao` |
-| `src/components/leads/LeadsTable.tsx` | Update statusConfig keys |
-| `src/components/leads/ExportLeadsCsvButton.tsx` | Update statusLabels keys |
-| `src/components/pipeline/ProposalCard.tsx` | `valor_proposto` → `valor`, remove `valor_fechado`/`motivo_perda`/`closer` |
-| `src/components/pipeline/PipelineColumn.tsx` | `valor_proposto` → `valor` |
-| `src/components/pipeline/PipelineBoard.tsx` | Remove `valor_fechado`/`caixa_gerado`/`fechado_em`/`motivo_perda` from update calls |
-| `src/components/meetings/CanceledMeetingsTable.tsx` | `inicio_em` → `data_reuniao`, field fixes |
-| `src/components/notifications/NotificationDropdown.tsx` | `enviado_em` → `created_at` |
-| `src/components/vendas/VendasTable.tsx` | Old status/field names → new |
-| `src/components/ui/calendar.tsx` | Fix `IconLeft`/`IconRight` for newer react-day-picker |
-| `src/components/ui/chart.tsx` | Type assertion for payload/label |
-
-### Status mapping reference
-
-| Old value | New crm_status value |
-|-----------|---------------------|
-| agendada | reuniao_agendada |
-| aconteceu | reuniao_realizada |
-| proposta_enviada | proposta_enviada |
-| ganha | fechado |
-| perdida | perdido |
-| no_show | nao_elegivel |
-| cancelada | nao_elegivel |
+### Files changed (7)
+| File | Fix |
+|------|-----|
+| `src/components/ui/resizable.tsx` | Use `* as ResizablePrimitive` import |
+| `src/components/users/CreateUserModal.tsx` | Use `z.enum` + `z.infer` |
+| `src/components/users/EditUserModal.tsx` | Use `z.enum` for cargo |
+| `src/hooks/useUsers.ts` | Widen `role` type to `string` |
+| `src/pages/Meetings.tsx` | `role` → `cargo` |
+| `src/pages/Proposals.tsx` | `role` → `cargo` |
+| `src/pages/Notificacoes.tsx` | `enviado_em` → `created_at` |
+| `src/pages/PropostaEnvio.tsx` | Remove `proposal_documents` query, update status labels |
 
