@@ -118,8 +118,8 @@ export default function Meetings() {
     try {
       await updateMeeting.mutateAsync({
         id: selectedMeeting.id,
-        status: "agendada",
-        inicio_em: novaData.toISOString(),
+        status: "reuniao_agendada",
+        data_reuniao: novaData.toISOString(),
       });
 
 
