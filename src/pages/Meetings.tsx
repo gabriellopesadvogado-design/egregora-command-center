@@ -354,7 +354,7 @@ export default function Meetings() {
         isLoading={updateMeeting.isPending}
       />
 
-      <LossModal
+      <MotivoPerdaModal
         open={lossModalOpen}
         onClose={() => {
           setLossModalOpen(false);
