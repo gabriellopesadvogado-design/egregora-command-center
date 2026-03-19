@@ -662,7 +662,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                         )}
                       </div>
                     )}
-                    {meeting.status === "perdida" && (
+                    {meeting.status === "perdido" && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-destructive font-medium">💔 Perdido</span>
                         {(role === "admin" || role === "manager") && (
