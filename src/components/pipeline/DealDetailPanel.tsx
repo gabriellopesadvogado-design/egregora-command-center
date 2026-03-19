@@ -77,16 +77,8 @@ export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps
     enabled: !!meetingId,
   });
 
-  const handleSaveNotas = async () => {
-    if (!meeting) return;
-    try {
-      await updateMeeting.mutateAsync({ id: meeting.id, notas });
-      setNotasDirty(false);
-      toast.success("Notas salvas");
-    } catch {
-      toast.error("Erro ao salvar notas");
-    }
-  };
+
+
 
   const handleMarkSent = async (stepId: string) => {
     const { error } = await supabase
