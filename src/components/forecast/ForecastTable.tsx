@@ -49,8 +49,8 @@ const FONTE_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, { label: string; emoji: string; variant: string }> = {
   proposta_enviada: { label: "Em aberto", emoji: "🚀", variant: "secondary" },
-  ganha: { label: "Ganha", emoji: "🏆", variant: "success" },
-  perdida: { label: "Perdida", emoji: "💔", variant: "destructive" },
+  fechado: { label: "Fechado", emoji: "🏆", variant: "success" },
+  perdido: { label: "Perdido", emoji: "💔", variant: "destructive" },
 };
 
 const QUALITY_CONFIG: Record<string, { emoji: string; label: string }> = {
