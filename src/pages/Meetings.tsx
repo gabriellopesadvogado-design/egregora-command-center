@@ -131,17 +131,16 @@ export default function Meetings() {
     }
   };
 
-  const confirmLoss = async (motivoPerda: string) => {
+  const confirmLoss = async (motivo: string, _observacao: string) => {
     if (!selectedMeeting) return;
 
     try {
       await updateMeeting.mutateAsync({
         id: selectedMeeting.id,
         status: "perdido",
-        motivo_perda: motivoPerda,
+        motivo_perda: motivo,
         data_fechamento: new Date().toISOString(),
       });
-
 
       toast.success("Reunião marcada como perdida");
       setLossModalOpen(false);
