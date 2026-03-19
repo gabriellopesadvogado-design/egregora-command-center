@@ -25,14 +25,12 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useUpdateUserRole } from "@/hooks/useUsers";
-import type { Database } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Profile = Tables<"core_users">;
 
 const editUserSchema = z.object({
-  role: z.enum(["sdr", "closer"], {
-    required_error: "Selecione uma função",
-  }),
+  cargo: z.string().min(1, "Selecione uma função"),
 });
 
 type EditUserForm = z.infer<typeof editUserSchema>;
@@ -49,13 +47,13 @@ export function EditUserModal({ user, open, onClose }: EditUserModalProps) {
   const form = useForm<EditUserForm>({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
-      role: undefined,
+      cargo: undefined,
     },
   });
 
   useEffect(() => {
-    if (user && (user.role === "sdr" || user.role === "closer")) {
-      form.reset({ role: user.role });
+    if (user) {
+      form.reset({ cargo: user.cargo });
     }
   }, [user, form]);
 
@@ -65,7 +63,7 @@ export function EditUserModal({ user, open, onClose }: EditUserModalProps) {
     try {
       await updateRole.mutateAsync({
         user_id: user.id,
-        role: data.role,
+        role: data.cargo,
       });
       onClose();
     } catch {
@@ -92,7 +90,7 @@ export function EditUserModal({ user, open, onClose }: EditUserModalProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="role"
+              name="cargo"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Função</FormLabel>

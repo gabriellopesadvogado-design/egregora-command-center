@@ -13,9 +13,9 @@ import { Edit, Power, KeyRound } from "lucide-react";
 import { useToggleUserActive } from "@/hooks/useUsers";
 import { EditUserModal } from "./EditUserModal";
 import { ResetPasswordModal } from "./ResetPasswordModal";
-import type { Database } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Profile = Tables<"core_users">;
 
 interface UsersTableProps {
   users: Profile[];
@@ -39,7 +39,8 @@ export function UsersTable({ users, isLoading }: UsersTableProps) {
       case "admin":
         return <Badge variant="default">Admin</Badge>;
       case "manager":
-        return <Badge variant="secondary">Manager</Badge>;
+      case "gestor":
+        return <Badge variant="secondary">Gestor</Badge>;
       case "sdr":
         return <Badge className="bg-primary/80 hover:bg-primary">SDR</Badge>;
       case "closer":
@@ -49,7 +50,7 @@ export function UsersTable({ users, isLoading }: UsersTableProps) {
     }
   };
 
-  const getStatusBadge = (ativo: boolean) => {
+  const getStatusBadge = (ativo: boolean | null) => {
     return ativo ? (
       <Badge variant="default">Ativo</Badge>
     ) : (
@@ -89,10 +90,10 @@ export function UsersTable({ users, isLoading }: UsersTableProps) {
               users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.nome}</TableCell>
-                  <TableCell>{getRoleBadge(user.role)}</TableCell>
+                  <TableCell>{getRoleBadge(user.cargo)}</TableCell>
                   <TableCell>{getStatusBadge(user.ativo)}</TableCell>
                   <TableCell>
-                    {new Date(user.criado_em).toLocaleDateString("pt-BR")}
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString("pt-BR") : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -100,7 +101,7 @@ export function UsersTable({ users, isLoading }: UsersTableProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => setEditingUser(user)}
-                        disabled={user.role === "admin" || user.role === "manager"}
+                        disabled={user.cargo === "admin" || user.cargo === "gestor"}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -117,8 +118,8 @@ export function UsersTable({ users, isLoading }: UsersTableProps) {
                         onClick={() => handleToggleActive(user)}
                         disabled={
                           toggleActive.isPending ||
-                          user.role === "admin" ||
-                          user.role === "manager"
+                          user.cargo === "admin" ||
+                          user.cargo === "gestor"
                         }
                       >
                         <Power className="h-4 w-4" />

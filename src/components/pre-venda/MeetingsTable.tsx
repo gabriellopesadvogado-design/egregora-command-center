@@ -50,7 +50,7 @@ export function MeetingsTable({ meetings, isLoading }: MeetingsTableProps) {
       });
 
       
-      if (newStatus === "aconteceu") {
+      if (newStatus === "reuniao_realizada") {
         triggerConfetti();
         toast.success("Reunião realizada! 🎉");
       } else {
@@ -176,7 +176,7 @@ export function MeetingsTable({ meetings, isLoading }: MeetingsTableProps) {
                 key={meeting.id} 
                 className={cn(
                   "hover:bg-muted/30",
-                  meeting.status === "agendada" && new Date(meeting.inicio_em) < new Date() && 
+                  meeting.status === "reuniao_agendada" && meeting.inicio_em && new Date(meeting.inicio_em) < new Date() && 
                     "bg-red-100 hover:bg-red-200 dark:bg-red-950/50 dark:hover:bg-red-950/70"
                 )}
               >

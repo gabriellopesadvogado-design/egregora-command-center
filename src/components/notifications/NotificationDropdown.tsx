@@ -92,7 +92,7 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(notification.enviado_em), {
+                      {formatDistanceToNow(new Date(notification.created_at), {
                         addSuffix: true,
                         locale: ptBR,
                       })}

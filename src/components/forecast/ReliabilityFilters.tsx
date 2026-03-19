@@ -16,10 +16,7 @@ import {
 import { Filter, X } from "lucide-react";
 import { subDays, addDays } from "date-fns";
 import type { ReliabilityFilters as IReliabilityFilters } from "@/hooks/useForecastReliability";
-import type { Database } from "@/integrations/supabase/types";
-
-type AvaliacaoReuniao = Database["public"]["Enums"]["avaliacao_reuniao"];
-type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
+import type { AvaliacaoReuniao, PlataformaOrigem } from "@/hooks/useMeetings";
 
 interface User {
   id: string;

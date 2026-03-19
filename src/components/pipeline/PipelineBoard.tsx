@@ -12,10 +12,10 @@ interface PipelineBoardProps {
 }
 
 const columns: { status: ProposalStatus; title: string }[] = [
-  { status: "aberta", title: "Aberta" },
-  { status: "follow_up", title: "Follow-up" },
-  { status: "ganha", title: "Ganha" },
-  { status: "perdida", title: "Perdida" },
+  { status: "rascunho", title: "Rascunho" },
+  { status: "enviada", title: "Enviada" },
+  { status: "aceita", title: "Aceita" },
+  { status: "recusada", title: "Recusada" },
 ];
 
 export function PipelineBoard({ proposals }: PipelineBoardProps) {
@@ -38,12 +38,12 @@ export function PipelineBoard({ proposals }: PipelineBoardProps) {
     const proposal = proposals.find((p) => p.id === proposalId);
     if (!proposal || proposal.status === newStatus) return;
 
-    if (newStatus === "ganha") {
+    if (newStatus === "aceita") {
       setWinModal({ open: true, proposal });
       return;
     }
 
-    if (newStatus === "perdida") {
+    if (newStatus === "recusada") {
       setLossModal({ open: true, proposal });
       return;
     }
@@ -51,12 +51,11 @@ export function PipelineBoard({ proposals }: PipelineBoardProps) {
     handleStatusChange(proposalId, newStatus);
   };
 
-  const handleStatusChange = async (proposalId: string, newStatus: ProposalStatus, extra?: Partial<Proposal>) => {
+  const handleStatusChange = async (proposalId: string, newStatus: ProposalStatus) => {
     try {
       await updateProposal.mutateAsync({
         id: proposalId,
         status: newStatus,
-        ...extra,
       });
       toast.success("Proposta atualizada");
     } catch (error) {
@@ -64,34 +63,32 @@ export function PipelineBoard({ proposals }: PipelineBoardProps) {
     }
   };
 
-  const handleWinConfirm = async (valorFechado: number, caixaGerado: number) => {
+  const handleWinConfirm = async (valorFechado: number, _caixaGerado: number) => {
     if (!winModal.proposal) return;
 
     try {
       await updateProposal.mutateAsync({
         id: winModal.proposal.id,
-        status: "ganha",
-        valor_fechado: valorFechado,
-        caixa_gerado: caixaGerado,
-        fechado_em: new Date().toISOString(),
+        status: "aceita",
+        data_resposta: new Date().toISOString(),
       });
-      toast.success("🎉 Proposta fechada com sucesso!");
+      toast.success("🎉 Proposta aceita com sucesso!");
       setWinModal({ open: false, proposal: null });
     } catch (error) {
       toast.error("Erro ao atualizar proposta");
     }
   };
 
-  const handleLossConfirm = async (motivoPerda: string) => {
+  const handleLossConfirm = async (_motivoPerda: string) => {
     if (!lossModal.proposal) return;
 
     try {
       await updateProposal.mutateAsync({
         id: lossModal.proposal.id,
-        status: "perdida",
-        motivo_perda: motivoPerda,
+        status: "recusada",
+        data_resposta: new Date().toISOString(),
       });
-      toast.success("Proposta marcada como perdida");
+      toast.success("Proposta marcada como recusada");
       setLossModal({ open: false, proposal: null });
     } catch (error) {
       toast.error("Erro ao atualizar proposta");
@@ -99,14 +96,13 @@ export function PipelineBoard({ proposals }: PipelineBoardProps) {
   };
 
   const handleCardClick = (proposal: Proposal) => {
-    // Could open a detail modal here
     console.log("Clicked proposal:", proposal);
   };
 
   if (isMobile) {
     return (
       <>
-        <Tabs defaultValue="aberta" className="w-full">
+        <Tabs defaultValue="rascunho" className="w-full">
           <TabsList className="w-full grid grid-cols-4">
             {columns.map((col) => (
               <TabsTrigger key={col.status} value={col.status} className="text-xs">
@@ -132,7 +128,7 @@ export function PipelineBoard({ proposals }: PipelineBoardProps) {
           onClose={() => setWinModal({ open: false, proposal: null })}
           onConfirm={handleWinConfirm}
           isLoading={updateProposal.isPending}
-          valorProposto={winModal.proposal?.valor_proposto}
+          valorProposto={winModal.proposal?.valor}
         />
         <LossModal
           open={lossModal.open}
@@ -164,7 +160,7 @@ export function PipelineBoard({ proposals }: PipelineBoardProps) {
         onClose={() => setWinModal({ open: false, proposal: null })}
         onConfirm={handleWinConfirm}
         isLoading={updateProposal.isPending}
-        valorProposto={winModal.proposal?.valor_proposto}
+        valorProposto={winModal.proposal?.valor}
       />
       <LossModal
         open={lossModal.open}

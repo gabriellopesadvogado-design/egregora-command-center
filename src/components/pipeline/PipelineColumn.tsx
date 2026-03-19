@@ -11,11 +11,11 @@ interface PipelineColumnProps {
   className?: string;
 }
 
-const statusColors: Record<ProposalStatus, string> = {
-  aberta: "border-t-info",
-  follow_up: "border-t-warning",
-  ganha: "border-t-success",
-  perdida: "border-t-destructive",
+const statusColors: Record<string, string> = {
+  rascunho: "border-t-muted-foreground",
+  enviada: "border-t-info",
+  aceita: "border-t-success",
+  recusada: "border-t-destructive",
 };
 
 export function PipelineColumn({
@@ -48,7 +48,7 @@ export function PipelineColumn({
     e.dataTransfer.setData("proposalId", proposalId);
   };
 
-  const total = proposals.reduce((sum, p) => sum + (p.valor_proposto || 0), 0);
+  const total = proposals.reduce((sum, p) => sum + (p.valor || 0), 0);
 
   return (
     <div

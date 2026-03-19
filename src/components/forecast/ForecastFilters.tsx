@@ -21,11 +21,7 @@ import {
   getDateRangeForPeriod,
 } from "@/components/pre-venda/SimplePeriodFilter";
 import type { ForecastFilters as IForecastFilters } from "@/hooks/useForecast";
-import type { Database } from "@/integrations/supabase/types";
-
-type MeetingStatus = Database["public"]["Enums"]["meeting_status"];
-type AvaliacaoReuniao = Database["public"]["Enums"]["avaliacao_reuniao"];
-type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
+import type { MeetingStatus, AvaliacaoReuniao, PlataformaOrigem } from "@/hooks/useMeetings";
 
 interface User {
   id: string;
@@ -59,8 +55,8 @@ const QUALITY_OPTIONS: { value: AvaliacaoReuniao; label: string; emoji: string }
 
 const STATUS_OPTIONS: { value: MeetingStatus; label: string; emoji: string }[] = [
   { value: "proposta_enviada", label: "Em aberto", emoji: "🚀" },
-  { value: "ganha", label: "Ganha", emoji: "🏆" },
-  { value: "perdida", label: "Perdida", emoji: "💔" },
+  { value: "fechado", label: "Ganha", emoji: "🏆" },
+  { value: "perdido", label: "Perdida", emoji: "💔" },
 ];
 
 export function ForecastFilters({

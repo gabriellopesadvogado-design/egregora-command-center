@@ -17,8 +17,8 @@ export function ReliabilityTab() {
   const { data, isLoading } = useForecastReliability(filters);
   const { data: users } = useAllProfiles();
 
-  const sdrs = users?.filter((u) => u.role === "sdr" && u.ativo) || [];
-  const closers = users?.filter((u) => u.role === "closer" && u.ativo) || [];
+  const sdrs = users?.filter((u) => u.cargo === "sdr" && u.ativo) || [];
+  const closers = users?.filter((u) => u.cargo === "closer" && u.ativo) || [];
 
   return (
     <div className="space-y-6">

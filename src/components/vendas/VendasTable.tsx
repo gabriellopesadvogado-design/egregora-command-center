@@ -85,7 +85,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
     queryKey: ["followup-counts", proposalMeetingIds],
     queryFn: async () => {
       if (proposalMeetingIds.length === 0) return [];
-      const { data, error } = await supabase.rpc("get_followup_counts", {
+      const { data, error } = await (supabase.rpc as any)("get_followup_counts", {
         p_meeting_ids: proposalMeetingIds,
       });
       if (error) throw error;
@@ -122,7 +122,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
       });
 
       
-      if (newStatus === "aconteceu") {
+      if (newStatus === "reuniao_realizada") {
         toast.success("Reunião realizada! ✅");
       } else {
         toast.success("Status atualizado");
@@ -422,10 +422,10 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                   key={meeting.id} 
                   className={cn(
                     "hover:bg-muted/30",
-                    meeting.status === "agendada" && new Date(meeting.inicio_em) < new Date() && 
-                      "bg-red-100 hover:bg-red-200 dark:bg-red-950/50 dark:hover:bg-red-950/70",
-                    meeting.status === "ganha" && "bg-success/5",
-                    meeting.status === "perdida" && "bg-destructive/5"
+                    meeting.status === "reuniao_agendada" && meeting.inicio_em && new Date(meeting.inicio_em) < new Date() && 
+                      "bg-destructive/5 hover:bg-destructive/10",
+                    meeting.status === "fechado" && "bg-success/5",
+                    meeting.status === "perdido" && "bg-destructive/5"
                   )}
                 >
                   <TableCell className="font-medium text-sm">
@@ -646,7 +646,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                         </Popover>
                       </div>
                     )}
-                    {meeting.status === "ganha" && (
+                    {meeting.status === "fechado" && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-success font-medium">🏆 Fechado</span>
                         {(role === "admin" || role === "manager") && (
@@ -662,7 +662,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                         )}
                       </div>
                     )}
-                    {meeting.status === "perdida" && (
+                    {meeting.status === "perdido" && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-destructive font-medium">💔 Perdido</span>
                         {(role === "admin" || role === "manager") && (
@@ -682,14 +682,14 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                   
                   <TableCell>
                     <QualificacaoSelect
-                      value={meeting.avaliacao_reuniao}
+                      value={meeting.avaliacao_reuniao as any}
                       onValueChange={(value) => handleQualificacaoChange(meeting.id, value, meeting)}
                       disabled={updateMeeting.isPending}
                     />
                   </TableCell>
                   
                   <TableCell className="text-sm">
-                    {meeting.status === "ganha" ? (
+                    {meeting.status === "fechado" ? (
                       <Popover 
                         open={editingValues?.id === meeting.id}
                         onOpenChange={(open) => {
@@ -818,7 +818,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
             <AlertDialogDescription>
               Tem certeza que deseja reverter o status de{" "}
               <strong>{revertMeeting?.nome_lead || revertMeeting?.leads?.nome || "este lead"}</strong>{" "}
-              de <strong>{revertMeeting?.status === "ganha" ? "Ganha" : "Perdida"}</strong> para{" "}
+              de <strong>{revertMeeting?.status === "fechado" ? "Fechado" : "Perdido"}</strong> para{" "}
               <strong>Proposta Enviada</strong>? Os valores financeiros e motivo de perda serão limpos.
             </AlertDialogDescription>
           </AlertDialogHeader>

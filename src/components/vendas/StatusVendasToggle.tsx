@@ -14,52 +14,28 @@ interface StatusVendasToggleProps {
   disabled?: boolean;
 }
 
-const statusConfig: Record<MeetingStatus, { emoji: string; className: string; label: string }> = {
-  agendada: { 
-    emoji: "🕐", 
-    className: "bg-info/10 text-info", 
-    label: "Agendada" 
-  },
-  aconteceu: { 
-    emoji: "✅", 
-    className: "bg-success/10 text-success", 
-    label: "Realizada" 
-  },
-  proposta_enviada: { 
-    emoji: "🚀", 
-    className: "bg-primary/10 text-primary", 
-    label: "Proposta Enviada" 
-  },
-  ganha: { 
-    emoji: "🏆", 
-    className: "bg-success/10 text-success", 
-    label: "Ganha" 
-  },
-  perdida: { 
-    emoji: "💔", 
-    className: "bg-destructive/10 text-destructive", 
-    label: "Perdida" 
-  },
-  no_show: { 
-    emoji: "🚫", 
-    className: "bg-warning/10 text-warning", 
-    label: "No Show" 
-  },
-  cancelada: { 
-    emoji: "❌", 
-    className: "bg-destructive/10 text-destructive", 
-    label: "Cancelada" 
-  },
+const statusConfig: Record<string, { emoji: string; className: string; label: string }> = {
+  novo_lead: { emoji: "🆕", className: "bg-muted text-muted-foreground", label: "Novo Lead" },
+  qualificado: { emoji: "✅", className: "bg-info/10 text-info", label: "Qualificado" },
+  nao_elegivel: { emoji: "🚫", className: "bg-warning/10 text-warning", label: "Não Elegível" },
+  elegivel: { emoji: "👍", className: "bg-success/10 text-success", label: "Elegível" },
+  reuniao_agendada: { emoji: "🕐", className: "bg-info/10 text-info", label: "Agendada" },
+  reuniao_realizada: { emoji: "✅", className: "bg-success/10 text-success", label: "Realizada" },
+  proposta_enviada: { emoji: "🚀", className: "bg-primary/10 text-primary", label: "Proposta Enviada" },
+  followup_ativo: { emoji: "📞", className: "bg-warning/10 text-warning", label: "Follow-up Ativo" },
+  contrato_enviado: { emoji: "📄", className: "bg-info/10 text-info", label: "Contrato Enviado" },
+  fechado: { emoji: "🏆", className: "bg-success/10 text-success", label: "Fechado" },
+  perdido: { emoji: "💔", className: "bg-destructive/10 text-destructive", label: "Perdido" },
 };
 
-// Status editáveis em Vendas (inclui proposta_enviada e no_show)
-const editableStatuses: MeetingStatus[] = ["agendada", "aconteceu", "no_show", "proposta_enviada", "cancelada"];
+// Status editáveis em Vendas
+const editableStatuses: MeetingStatus[] = ["reuniao_agendada", "reuniao_realizada", "nao_elegivel", "proposta_enviada"];
 
 // Status finais que não podem ser alterados
-const finalStatuses: MeetingStatus[] = ["ganha", "perdida"];
+const finalStatuses: MeetingStatus[] = ["fechado", "perdido"];
 
 export function StatusVendasToggle({ status, onStatusChange, disabled }: StatusVendasToggleProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.novo_lead;
   const isFinalStatus = finalStatuses.includes(status);
 
   return (
@@ -91,7 +67,6 @@ export function StatusVendasToggle({ status, onStatusChange, disabled }: StatusV
             </span>
           </SelectItem>
         ))}
-        {/* Status finais - mostrar apenas se for o status atual */}
         {isFinalStatus && (
           <SelectItem value={status} disabled>
             <span className="flex items-center gap-1.5">

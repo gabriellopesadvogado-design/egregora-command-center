@@ -14,14 +14,18 @@ const fonteLabels: Record<PlataformaOrigem, string> = {
   outros: "Outro",
 };
 
-const statusLabels: Record<MeetingStatus, string> = {
-  agendada: "Agendada",
-  aconteceu: "Realizada",
+const statusLabels: Record<string, string> = {
+  novo_lead: "Novo Lead",
+  qualificado: "Qualificado",
+  nao_elegivel: "Não Elegível",
+  elegivel: "Elegível",
+  reuniao_agendada: "Agendada",
+  reuniao_realizada: "Realizada",
   proposta_enviada: "Proposta Enviada",
-  ganha: "Ganha",
-  perdida: "Perdida",
-  no_show: "No Show",
-  cancelada: "Cancelada",
+  followup_ativo: "Follow-up Ativo",
+  contrato_enviado: "Contrato Enviado",
+  fechado: "Fechado",
+  perdido: "Perdido",
 };
 
 const qualificacaoLabels: Record<AvaliacaoReuniao, string> = {
