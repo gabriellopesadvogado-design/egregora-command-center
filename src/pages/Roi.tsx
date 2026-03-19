@@ -84,12 +84,11 @@ export default function Roi() {
 
   const saveCost = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("channel_costs").insert({
-        canal: costCanal as any,
-        periodo_inicio: costInicio,
-        periodo_fim: costFim,
-        investimento: parseFloat(costValor),
-      });
+      const { error } = await supabase.from("crm_channel_costs").insert({
+        canal: costCanal,
+        mes: costInicio,
+        custo_total: parseFloat(costValor),
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {

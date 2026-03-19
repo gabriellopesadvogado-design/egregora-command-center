@@ -45,7 +45,7 @@ const createUserSchema = z.object({
     .string()
     .min(6, "A senha deve ter no mínimo 6 caracteres")
     .max(72, "Senha muito longa"),
-  role: z.enum(["sdr", "closer"], { required_error: "Selecione uma função" }),
+  role: z.enum(["sdr", "closer"]),
 });
 
 type CreateUserFormData = z.infer<typeof createUserSchema>;
