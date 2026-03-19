@@ -649,7 +649,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                     {meeting.status === "fechado" && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-success font-medium">🏆 Fechado</span>
-                        {(role === "admin" || role === "manager") && (
+                        {(role === "admin" || role === "gestor") && (
                           <Button
                             size="sm"
                             variant="ghost"
