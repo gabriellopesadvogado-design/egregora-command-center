@@ -71,7 +71,7 @@ export default function Roi() {
   const { data: roiData, isLoading } = useQuery({
     queryKey: ["roi_por_canal", inicio, fim],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("roi_por_canal", {
+      const { data, error } = await supabase.rpc("roi_por_canal" as any, {
         p_inicio: inicio,
         p_fim: fim,
       });
