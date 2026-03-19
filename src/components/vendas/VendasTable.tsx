@@ -422,10 +422,10 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                   key={meeting.id} 
                   className={cn(
                     "hover:bg-muted/30",
-                    meeting.status === "agendada" && new Date(meeting.inicio_em) < new Date() && 
-                      "bg-red-100 hover:bg-red-200 dark:bg-red-950/50 dark:hover:bg-red-950/70",
-                    meeting.status === "ganha" && "bg-success/5",
-                    meeting.status === "perdida" && "bg-destructive/5"
+                    meeting.status === "reuniao_agendada" && meeting.inicio_em && new Date(meeting.inicio_em) < new Date() && 
+                      "bg-destructive/5 hover:bg-destructive/10",
+                    meeting.status === "fechado" && "bg-success/5",
+                    meeting.status === "perdido" && "bg-destructive/5"
                   )}
                 >
                   <TableCell className="font-medium text-sm">
