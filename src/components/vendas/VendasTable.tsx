@@ -689,7 +689,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                   </TableCell>
                   
                   <TableCell className="text-sm">
-                    {meeting.status === "ganha" ? (
+                    {meeting.status === "fechado" ? (
                       <Popover 
                         open={editingValues?.id === meeting.id}
                         onOpenChange={(open) => {
