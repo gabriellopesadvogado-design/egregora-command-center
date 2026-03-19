@@ -32,33 +32,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener BEFORE checking session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fetch profile and role
           setTimeout(async () => {
             const { data: profileData } = await supabase
-              .from("profiles")
+              .from("core_users")
               .select("*")
               .eq("id", session.user.id)
               .single();
 
             if (profileData) {
-              setProfile(profileData as Profile);
-            }
-
-            const { data: roleData } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", session.user.id)
-              .single();
-
-            if (roleData) {
-              setRole(roleData.role as AppRole);
+              setProfile({
+                id: profileData.id,
+                nome: profileData.nome,
+                role: profileData.cargo as AppRole,
+                ativo: profileData.ativo ?? true,
+              });
+              setRole(profileData.cargo as AppRole);
             }
           }, 0);
         } else {
@@ -70,7 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         setLoading(false);
@@ -81,10 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
@@ -105,18 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        role,
-        loading,
-        signIn,
-        signUp,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={{ user, session, profile, role, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

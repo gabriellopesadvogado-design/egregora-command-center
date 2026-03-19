@@ -3,10 +3,10 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 
-export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
-export type NotificationTipo = Database["public"]["Enums"]["notification_tipo"];
+export type Notification = Tables<"core_notifications">;
+export type NotificationTipo = string;
 
 export function useNotifications() {
   const { user } = useAuth();
@@ -18,10 +18,10 @@ export function useNotifications() {
       if (!user?.id) return [];
 
       const { data, error } = await supabase
-        .from("notifications")
+        .from("core_notifications")
         .select("*")
         .eq("user_id", user.id)
-        .order("enviado_em", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(50);
 
       if (error) throw error;
@@ -38,7 +38,6 @@ export function useNotifications() {
   };
 }
 
-// Separate hook for urgent alerts - should only be used once in AppLayout
 export function useUrgentNotifications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -54,17 +53,15 @@ export function useUrgentNotifications() {
         {
           event: "INSERT",
           schema: "public",
-          table: "notifications",
+          table: "core_notifications",
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           const newNotification = payload.new as Notification;
           
-          // For 5-minute closer alerts, show the big modal instead of toast
           if (newNotification.tipo === "lembrete_closer_5min") {
             setUrgentAlert(newNotification);
           } else {
-            // Show toast for other notification types
             toast(newNotification.titulo, {
               description: newNotification.mensagem || undefined,
               duration: 8000,
@@ -77,7 +74,6 @@ export function useUrgentNotifications() {
             });
           }
 
-          // Invalidate query to refetch
           queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
         }
       )
@@ -90,10 +86,7 @@ export function useUrgentNotifications() {
 
   const dismissUrgentAlert = useCallback(() => setUrgentAlert(null), []);
 
-  return {
-    urgentAlert,
-    dismissUrgentAlert,
-  };
+  return { urgentAlert, dismissUrgentAlert };
 }
 
 export function useMarkAsRead() {
@@ -103,10 +96,9 @@ export function useMarkAsRead() {
   return useMutation({
     mutationFn: async (notificationId: string) => {
       const { error } = await supabase
-        .from("notifications")
+        .from("core_notifications")
         .update({ lida: true })
         .eq("id", notificationId);
-
       if (error) throw error;
     },
     onSuccess: () => {
@@ -122,13 +114,11 @@ export function useMarkAllAsRead() {
   return useMutation({
     mutationFn: async () => {
       if (!user?.id) return;
-
       const { error } = await supabase
-        .from("notifications")
+        .from("core_notifications")
         .update({ lida: true })
         .eq("user_id", user.id)
         .eq("lida", false);
-
       if (error) throw error;
     },
     onSuccess: () => {

@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert, TablesUpdate, Database } from "@/integrations/supabase/types";
+import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
-export type Proposal = Tables<"proposals"> & {
-  leads?: Tables<"leads">;
-  closer?: Tables<"profiles">;
+export type Proposal = Tables<"crm_proposals"> & {
+  leads?: Tables<"crm_leads"> | null;
+  criado_em?: string;
 };
 
-export type ProposalInsert = TablesInsert<"proposals">;
-export type ProposalUpdate = TablesUpdate<"proposals">;
-export type ProposalStatus = Database["public"]["Enums"]["proposal_status"];
+export type ProposalInsert = TablesInsert<"crm_proposals">;
+export type ProposalUpdate = TablesUpdate<"crm_proposals">;
+export type ProposalStatus = string;
 
 export interface ProposalsFilters {
   closerId?: string;
@@ -23,28 +23,27 @@ export function useProposals(filters?: ProposalsFilters) {
     queryKey: ["proposals", filters],
     queryFn: async () => {
       let query = supabase
-        .from("proposals")
+        .from("crm_proposals")
         .select(`
           *,
-          leads:lead_id (*),
-          closer:profiles!proposals_closer_id_fkey (*)
+          leads:lead_id (*)
         `)
-        .order("criado_em", { ascending: false });
+        .order("created_at", { ascending: false });
 
-      if (filters?.closerId) {
-        query = query.eq("closer_id", filters.closerId);
-      }
       if (filters?.startDate) {
-        query = query.gte("criado_em", filters.startDate.toISOString());
+        query = query.gte("created_at", filters.startDate.toISOString());
       }
       if (filters?.endDate) {
-        query = query.lte("criado_em", filters.endDate.toISOString());
+        query = query.lte("created_at", filters.endDate.toISOString());
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      let proposals = (data || []) as unknown as Proposal[];
+      let proposals = ((data || []) as any[]).map((p) => ({
+        ...p,
+        criado_em: p.created_at,
+      })) as Proposal[];
 
       if (filters?.searchTerm) {
         const term = filters.searchTerm.toLowerCase();
@@ -64,13 +63,9 @@ export function useCreateProposal() {
   return useMutation({
     mutationFn: async (proposal: ProposalInsert) => {
       const { data, error } = await supabase
-        .from("proposals")
+        .from("crm_proposals")
         .insert(proposal)
-        .select(`
-          *,
-          leads:lead_id (*),
-          closer:profiles!proposals_closer_id_fkey (*)
-        `)
+        .select(`*, leads:lead_id (*)`)
         .single();
 
       if (error) throw error;
@@ -88,14 +83,10 @@ export function useUpdateProposal() {
   return useMutation({
     mutationFn: async ({ id, ...update }: ProposalUpdate & { id: string }) => {
       const { data, error } = await supabase
-        .from("proposals")
+        .from("crm_proposals")
         .update(update)
         .eq("id", id)
-        .select(`
-          *,
-          leads:lead_id (*),
-          closer:profiles!proposals_closer_id_fkey (*)
-        `)
+        .select(`*, leads:lead_id (*)`)
         .single();
 
       if (error) throw error;

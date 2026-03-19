@@ -1,27 +1,56 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert, TablesUpdate, Database } from "@/integrations/supabase/types";
+import type { Tables, TablesUpdate, Database } from "@/integrations/supabase/types";
 
-export type Meeting = Tables<"meetings"> & {
-  leads?: Tables<"leads">;
-  closer?: Tables<"profiles">;
-  sdr?: Tables<"profiles">;
+export type CrmStatus = Database["public"]["Enums"]["crm_status"];
+
+// Local type aliases for backward compat
+export type MeetingStatus = CrmStatus;
+export type AvaliacaoReuniao = "boa" | "neutra" | "ruim";
+export type PlataformaOrigem = "google" | "meta" | "blog" | "organico" | "indicacao" | "reativacao" | "outros";
+
+export type Meeting = Tables<"crm_meetings"> & {
+  leads?: Tables<"crm_leads"> | null;
+  closer?: Tables<"core_users"> | null;
+  sdr?: Tables<"core_users"> | null;
+  // virtual fields for compat
+  inicio_em?: string | null;
+  fechado_em?: string | null;
+  valor_fechado?: number | null;
+  criado_em?: string | null;
+  observacao?: string | null;
+  fonte_lead?: string | null;
+  avaliacao_reuniao?: string | null;
+  caixa_gerado?: number | null;
+  telefone?: string | null;
 };
 
-export type MeetingInsert = TablesInsert<"meetings">;
-export type MeetingUpdate = TablesUpdate<"meetings">;
-export type MeetingStatus = Database["public"]["Enums"]["meeting_status"];
-export type AvaliacaoReuniao = Database["public"]["Enums"]["avaliacao_reuniao"];
-export type PlataformaOrigem = Database["public"]["Enums"]["plataforma_origem"];
+export type MeetingInsert = any;
+export type MeetingUpdate = TablesUpdate<"crm_meetings">;
 
 export interface MeetingsFilters {
   startDate?: Date;
   endDate?: Date;
-  status?: MeetingStatus[];
-  plataforma?: PlataformaOrigem[];
+  status?: CrmStatus[];
+  plataforma?: string[];
   closerId?: string;
   sdrId?: string;
   searchTerm?: string;
+}
+
+function enrichMeeting(raw: any): Meeting {
+  return {
+    ...raw,
+    inicio_em: raw.data_reuniao,
+    fechado_em: raw.data_fechamento,
+    valor_fechado: raw.valor_fechamento,
+    criado_em: raw.created_at,
+    observacao: raw.notas,
+    fonte_lead: null,
+    avaliacao_reuniao: null,
+    caixa_gerado: null,
+    telefone: raw.telefone_lead,
+  };
 }
 
 export function useMeetings(filters?: MeetingsFilters) {
@@ -29,20 +58,20 @@ export function useMeetings(filters?: MeetingsFilters) {
     queryKey: ["meetings", filters],
     queryFn: async () => {
       let query = supabase
-        .from("meetings")
+        .from("crm_meetings")
         .select(`
           *,
-          leads:lead_id (*),
-          closer:profiles!meetings_closer_id_fkey (*),
-          sdr:profiles!meetings_sdr_id_fkey (*)
+          leads:lead_id (*)  ,
+          closer:core_users!crm_meetings_closer_id_fkey (*),
+          sdr:core_users!crm_meetings_sdr_id_fkey (*)
         `)
-        .order("inicio_em", { ascending: false });
+        .order("data_reuniao", { ascending: false });
 
       if (filters?.startDate) {
-        query = query.gte("inicio_em", filters.startDate.toISOString());
+        query = query.gte("data_reuniao", filters.startDate.toISOString());
       }
       if (filters?.endDate) {
-        query = query.lte("inicio_em", filters.endDate.toISOString());
+        query = query.lte("data_reuniao", filters.endDate.toISOString());
       }
       if (filters?.status && filters.status.length > 0) {
         query = query.in("status", filters.status);
@@ -57,19 +86,13 @@ export function useMeetings(filters?: MeetingsFilters) {
       const { data, error } = await query;
       if (error) throw error;
 
-      let meetings = (data || []) as unknown as Meeting[];
+      let meetings = ((data || []) as any[]).map(enrichMeeting);
 
-      // Client-side filtering for lead search
       if (filters?.searchTerm) {
         const term = filters.searchTerm.toLowerCase();
         meetings = meetings.filter((m) =>
           m.nome_lead?.toLowerCase().includes(term) ||
           m.leads?.nome?.toLowerCase().includes(term)
-        );
-      }
-      if (filters?.plataforma && filters.plataforma.length > 0) {
-        meetings = meetings.filter((m) =>
-          filters.plataforma!.includes(m.leads?.plataforma_origem as PlataformaOrigem)
         );
       }
 
@@ -82,23 +105,23 @@ export function useCreateMeeting() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (meeting: Omit<MeetingInsert, "sdr_id">) => {
+    mutationFn: async (meeting: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
       const { data, error } = await supabase
-        .from("meetings")
+        .from("crm_meetings")
         .insert({ ...meeting, sdr_id: user.id })
         .select(`
           *,
           leads:lead_id (*),
-          closer:profiles!meetings_closer_id_fkey (*),
-          sdr:profiles!meetings_sdr_id_fkey (*)
+          closer:core_users!crm_meetings_closer_id_fkey (*),
+          sdr:core_users!crm_meetings_sdr_id_fkey (*)
         `)
         .single();
 
       if (error) throw error;
-      return data as unknown as Meeting;
+      return enrichMeeting(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
@@ -111,21 +134,42 @@ export function useUpdateMeeting() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...update }: MeetingUpdate & { id: string }) => {
+    mutationFn: async ({ id, ...update }: any) => {
+      // Map compat fields to real columns
+      const mapped: any = { ...update };
+      if ('valor_fechado' in mapped) {
+        mapped.valor_fechamento = mapped.valor_fechado;
+        delete mapped.valor_fechado;
+      }
+      if ('fechado_em' in mapped) {
+        mapped.data_fechamento = mapped.fechado_em;
+        delete mapped.fechado_em;
+      }
+      if ('telefone' in mapped) {
+        mapped.telefone_lead = mapped.telefone;
+        delete mapped.telefone;
+      }
+      // Remove fields that don't exist in the table
+      delete mapped.caixa_gerado;
+      delete mapped.fonte_lead;
+      delete mapped.avaliacao_reuniao;
+      delete mapped.primeiro_followup_em;
+      delete mapped.observacao;
+
       const { data, error } = await supabase
-        .from("meetings")
-        .update(update)
+        .from("crm_meetings")
+        .update(mapped)
         .eq("id", id)
         .select(`
           *,
           leads:lead_id (*),
-          closer:profiles!meetings_closer_id_fkey (*),
-          sdr:profiles!meetings_sdr_id_fkey (*)
+          closer:core_users!crm_meetings_closer_id_fkey (*),
+          sdr:core_users!crm_meetings_sdr_id_fkey (*)
         `)
         .single();
 
       if (error) throw error;
-      return data as unknown as Meeting;
+      return enrichMeeting(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meetings"] });

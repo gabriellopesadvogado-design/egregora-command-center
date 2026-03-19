@@ -2,17 +2,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
-export type Lead = Tables<"leads">;
-export type LeadInsert = TablesInsert<"leads">;
+export type Lead = Tables<"crm_leads">;
+export type LeadInsert = TablesInsert<"crm_leads">;
 
 export function useLeads(searchTerm?: string) {
   return useQuery({
     queryKey: ["leads", searchTerm],
     queryFn: async () => {
       let query = supabase
-        .from("leads")
+        .from("crm_leads")
         .select("*")
-        .order("criado_em", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (searchTerm) {
         query = query.ilike("nome", `%${searchTerm}%`);
@@ -29,13 +29,10 @@ export function useCreateLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (lead: Omit<LeadInsert, "sdr_id">) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
+    mutationFn: async (lead: Partial<LeadInsert>) => {
       const { data, error } = await supabase
-        .from("leads")
-        .insert({ ...lead, sdr_id: user.id })
+        .from("crm_leads")
+        .insert(lead as LeadInsert)
         .select()
         .single();
 

@@ -26,26 +26,25 @@ export function useCloserAvailability(date: Date) {
       const dayEnd = endOfDay(date);
 
       const { data: meetings, error } = await supabase
-        .from("meetings")
-        .select("closer_id, inicio_em, nome_lead, status")
-        .gte("inicio_em", dayStart.toISOString())
-        .lte("inicio_em", dayEnd.toISOString())
-        .neq("status", "cancelada")
-        .order("inicio_em", { ascending: true });
+        .from("crm_meetings")
+        .select("closer_id, data_reuniao, nome_lead, status")
+        .gte("data_reuniao", dayStart.toISOString())
+        .lte("data_reuniao", dayEnd.toISOString())
+        .order("data_reuniao", { ascending: true });
 
       if (error) throw error;
 
-      // Agrupar por closer
       const availabilityMap = new Map<string, CloserSlot[]>();
       for (const meeting of meetings || []) {
+        if (!meeting.closer_id) continue;
         if (!availabilityMap.has(meeting.closer_id)) {
           availabilityMap.set(meeting.closer_id, []);
         }
         availabilityMap.get(meeting.closer_id)!.push({
-          horario: format(new Date(meeting.inicio_em), "HH:mm"),
+          horario: format(new Date(meeting.data_reuniao!), "HH:mm"),
           leadName: meeting.nome_lead || "Lead",
-          status: meeting.status,
-          inicioEm: meeting.inicio_em,
+          status: meeting.status || "",
+          inicioEm: meeting.data_reuniao || "",
         });
       }
 
