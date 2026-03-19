@@ -80,13 +80,13 @@ export function CanceledMeetingsTable({
         <TableBody>
           {meetings.map((meeting) => {
             const statusInfo = statusConfig[meeting.status] || statusConfig.cancelada;
-            const fonte = meeting.fonte_lead || meeting.leads?.plataforma_origem || "outros";
+            const fonte = meeting.leads?.origem || "outros";
             const fonteInfo = fonteConfig[fonte] || fonteConfig.outros;
 
             return (
               <TableRow key={meeting.id}>
                 <TableCell className="font-medium">
-                  {format(new Date(meeting.inicio_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                  {meeting.data_reuniao ? format(new Date(meeting.data_reuniao), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "—"}
                 </TableCell>
                 <TableCell>
                   {meeting.nome_lead || meeting.leads?.nome || "—"}
@@ -104,7 +104,7 @@ export function CanceledMeetingsTable({
                 <TableCell>{meeting.closer?.nome || "—"}</TableCell>
                 <TableCell>{meeting.sdr?.nome || "—"}</TableCell>
                 <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                  {meeting.observacao || "—"}
+                  {meeting.notas || "—"}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">

@@ -86,7 +86,7 @@ export function LeadsTable({ leads, isLoading, onAddPhone }: LeadsTableProps) {
             </TableRow>
           ) : (
             leads.map((lead) => {
-              const status = statusConfig[lead.status];
+              const status = statusConfig[lead.status] || statusConfig.novo_lead;
               const qualificacao = lead.qualificacao ? qualificacaoConfig[lead.qualificacao] : null;
               
               return (

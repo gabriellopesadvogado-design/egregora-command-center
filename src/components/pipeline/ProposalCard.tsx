@@ -11,9 +11,9 @@ interface ProposalCardProps {
 }
 
 export function ProposalCard({ proposal, onClick, isDragging }: ProposalCardProps) {
-  const diasDesde = differenceInDays(new Date(), new Date(proposal.criado_em));
+  const diasDesde = differenceInDays(new Date(), new Date(proposal.criado_em || proposal.created_at || new Date()));
 
-  const formatCurrency = (value: number | null) => {
+  const formatCurrency = (value: number | null | undefined) => {
     if (!value) return "—";
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -41,24 +41,12 @@ export function ProposalCard({ proposal, onClick, isDragging }: ProposalCardProp
         </div>
 
         <div className="text-xs text-muted-foreground">
-          <p>{proposal.closer?.nome || "Sem closer"}</p>
+          <p>{proposal.tipo_servico || "—"}</p>
         </div>
 
-        {proposal.valor_proposto && (
+        {proposal.valor && (
           <p className="text-sm font-semibold text-primary">
-            {formatCurrency(proposal.valor_proposto)}
-          </p>
-        )}
-
-        {proposal.status === "ganha" && proposal.valor_fechado && (
-          <div className="text-xs text-success">
-            Fechado: {formatCurrency(proposal.valor_fechado)}
-          </div>
-        )}
-
-        {proposal.status === "perdida" && proposal.motivo_perda && (
-          <p className="text-xs text-destructive line-clamp-1">
-            {proposal.motivo_perda}
+            {formatCurrency(proposal.valor)}
           </p>
         )}
       </div>

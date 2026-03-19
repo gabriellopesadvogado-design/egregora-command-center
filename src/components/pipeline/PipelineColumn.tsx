@@ -11,11 +11,11 @@ interface PipelineColumnProps {
   className?: string;
 }
 
-const statusColors: Record<ProposalStatus, string> = {
-  aberta: "border-t-info",
-  follow_up: "border-t-warning",
-  ganha: "border-t-success",
-  perdida: "border-t-destructive",
+const statusColors: Record<string, string> = {
+  rascunho: "border-t-muted-foreground",
+  enviada: "border-t-info",
+  aceita: "border-t-success",
+  recusada: "border-t-destructive",
 };
 
 export function PipelineColumn({
