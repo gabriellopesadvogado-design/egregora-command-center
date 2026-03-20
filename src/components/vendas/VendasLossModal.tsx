@@ -22,7 +22,7 @@ interface VendasLossModalProps {
 }
 
 export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasLossModalProps) {
-  const [outcome, setOutcome] = useState<LossOutcome>("perdida_definitiva");
+  const [outcome, setOutcome] = useState<LossOutcome>("perdido");
   const [motivo, setMotivo] = useState("");
 
   const handleConfirm = () => {
