@@ -193,13 +193,14 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
               <TableHead className="w-[130px] font-semibold">Qualificação</TableHead>
               <TableHead className="w-[110px] font-semibold">Valor Líquido</TableHead>
               <TableHead className="w-[100px] font-semibold">SDR</TableHead>
+              <TableHead className="w-[100px] font-semibold">Closer</TableHead>
               <TableHead className="min-w-[160px] font-semibold">Obs</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {meetings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   Nenhuma reunião encontrada.
                 </TableCell>
               </TableRow>
@@ -375,6 +376,9 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
 
                     {/* SDR */}
                     <TableCell className="text-sm text-muted-foreground">{meeting.sdr?.nome || "—"}</TableCell>
+
+                    {/* Closer */}
+                    <TableCell className="text-sm text-muted-foreground">{meeting.closer?.nome || "—"}</TableCell>
 
                     {/* Obs */}
                     <TableCell>
