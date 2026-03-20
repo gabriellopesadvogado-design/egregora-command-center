@@ -31,10 +31,7 @@ export default function Pipeline() {
   const { data: meetings = [], isLoading } = useMeetings(meetingsFilters);
 
   // Exclude nao_elegivel from kanban
-  const kanbanMeetings = useMemo(
-    () => meetings.filter((m) => m.status !== "nao_elegivel"),
-    [meetings]
-  );
+  const kanbanMeetings = meetings;
 
   return (
     <div className="space-y-4">
