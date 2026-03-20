@@ -471,7 +471,7 @@ export default function Followup() {
                       className="border-destructive/50 text-destructive hover:bg-destructive/10"
                       onClick={() => {
                         setLossModal(step);
-                        setLossTipo("perdida_simples");
+                        setLossTipo("perdido_simples");
                         setLossMotivo("");
                       }}
                     >
