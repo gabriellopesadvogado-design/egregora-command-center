@@ -191,7 +191,7 @@ export default function Followup() {
   const handleWinConfirm = () => {
     if (!winConfirm) return;
     setDealOutcome.mutate(
-      { meetingId: winConfirm.meeting_id, outcome: "ganha" },
+      { meetingId: winConfirm.meeting_id, outcome: "fechado" },
       {
         onSuccess: () => {
           toast({ title: "🏆 Deal marcado como ganho!" });
