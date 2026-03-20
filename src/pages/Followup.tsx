@@ -823,7 +823,7 @@ export default function Followup() {
             </p>
             <RadioGroup value={lossTipo} onValueChange={(v) => setLossTipo(v as any)}>
               <div className="flex items-start gap-3 p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
-                <RadioGroupItem value="perdida_simples" id="loss-simples" className="mt-0.5" />
+                <RadioGroupItem value="perdido_simples" id="loss-simples" className="mt-0.5" />
                 <Label htmlFor="loss-simples" className="cursor-pointer">
                   <div className="font-medium">Perdido simples (manter mensal)</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
