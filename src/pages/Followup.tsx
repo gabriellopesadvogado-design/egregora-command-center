@@ -120,7 +120,7 @@ export default function Followup() {
   // Outcome modals state
   const [winConfirm, setWinConfirm] = useState<FollowupStep | null>(null);
   const [lossModal, setLossModal] = useState<FollowupStep | null>(null);
-  const [lossTipo, setLossTipo] = useState<"perdida_simples" | "perdida_definitiva">("perdida_simples");
+  const [lossTipo, setLossTipo] = useState<"perdido_simples" | "perdido">("perdido_simples");
   const [lossMotivo, setLossMotivo] = useState("");
 
   const [openSections, setOpenSections] = useState({
