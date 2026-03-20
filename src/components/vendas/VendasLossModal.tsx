@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 
-type LossOutcome = "perdida_simples" | "perdida_definitiva";
+type LossOutcome = "perdido_simples" | "perdido";
 
 interface VendasLossModalProps {
   open: boolean;
@@ -22,7 +22,7 @@ interface VendasLossModalProps {
 }
 
 export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasLossModalProps) {
-  const [outcome, setOutcome] = useState<LossOutcome>("perdida_definitiva");
+  const [outcome, setOutcome] = useState<LossOutcome>("perdido");
   const [motivo, setMotivo] = useState("");
 
   const handleConfirm = () => {
@@ -36,7 +36,7 @@ export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasL
   const handleOpenChange = (o: boolean) => {
     if (!o) {
       onClose();
-      setOutcome("perdida_definitiva");
+      setOutcome("perdido");
       setMotivo("");
     }
   };
@@ -56,7 +56,7 @@ export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasL
               className="space-y-2"
             >
               <div className="flex items-start gap-2">
-                <RadioGroupItem value="perdida_simples" id="simples" className="mt-0.5" />
+                <RadioGroupItem value="perdido_simples" id="simples" className="mt-0.5" />
                 <Label htmlFor="simples" className="cursor-pointer leading-tight">
                   <span className="font-medium">Perdido simples</span>
                   <span className="block text-xs text-muted-foreground">
@@ -65,7 +65,7 @@ export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasL
                 </Label>
               </div>
               <div className="flex items-start gap-2">
-                <RadioGroupItem value="perdida_definitiva" id="definitiva" className="mt-0.5" />
+                <RadioGroupItem value="perdido" id="definitiva" className="mt-0.5" />
                 <Label htmlFor="definitiva" className="cursor-pointer leading-tight">
                   <span className="font-medium">Perdido definitivo</span>
                   <span className="block text-xs text-muted-foreground">

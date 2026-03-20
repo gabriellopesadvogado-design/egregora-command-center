@@ -29,7 +29,7 @@ export function QuickAddRow() {
   const [telefoneError, setTelefoneError] = useState("");
   const [data, setData] = useState<Date>(new Date());
   const [fonte, setFonte] = useState<string>("outros");
-  const [status, setStatus] = useState<string>("agendada");
+  const [status, setStatus] = useState<string>("reuniao_agendada");
   const [closerId, setCloserId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -168,9 +168,8 @@ export function QuickAddRow() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="agendada">🕐 Agendada</SelectItem>
-            <SelectItem value="aconteceu">✅ Realizada</SelectItem>
-            <SelectItem value="cancelada">🚫 Cancelada</SelectItem>
+            <SelectItem value="reuniao_agendada">🕐 Agendada</SelectItem>
+            <SelectItem value="reuniao_realizada">✅ Realizada</SelectItem>
           </SelectContent>
         </Select>
       </TableCell>
