@@ -31,7 +31,7 @@ const statusOptions: { value: MeetingStatus; label: string; emoji: string }[] = 
 const VENDAS_EXCLUDED: CrmStatus[] = ["nao_elegivel", "novo_lead", "qualificado", "elegivel"];
 
 export default function Vendas() {
-  const [period, setPeriod] = useState<PeriodType>("this_week");
+  const [period, setPeriod] = useState<PeriodType>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<MeetingStatus[]>([]);
   const [selectedCloser, setSelectedCloser] = useState<string | undefined>();
@@ -54,7 +54,13 @@ export default function Vendas() {
   const { data: allMeetings = [], isLoading } = useCloserMeetings(filters);
 
   // Filter out early-pipeline statuses
-  const meetings = allMeetings.filter(m => !VENDAS_EXCLUDED.includes(m.status as CrmStatus));
+  const meetings = allMeetings
+    .filter(m => !VENDAS_EXCLUDED.includes(m.status as CrmStatus))
+    .sort((a, b) => {
+      const dateA = a.data_reuniao ? new Date(a.data_reuniao).getTime() : 0;
+      const dateB = b.data_reuniao ? new Date(b.data_reuniao).getTime() : 0;
+      return dateB - dateA;
+    });
 
   const toggleStatus = (status: MeetingStatus) => {
     setSelectedStatus((prev) =>
