@@ -1,13 +1,17 @@
 import { useState, useMemo } from "react";
 import { KanbanBoard } from "@/components/pipeline/KanbanBoard";
 import { KanbanFilters, type KanbanFiltersState } from "@/components/pipeline/KanbanFilters";
+import { NewLeadKanbanModal } from "@/components/pipeline/NewLeadKanbanModal";
 import { useMeetings } from "@/hooks/useMeetings";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 export default function Pipeline() {
   const { user, role } = useAuth();
   const [filters, setFilters] = useState<KanbanFiltersState>({});
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
 
   // Auto-filter by role
   const meetingsFilters = useMemo(() => {
@@ -34,10 +38,17 @@ export default function Pipeline() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Pipeline</h1>
-        <p className="text-muted-foreground">Kanban visual do funil comercial</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Pipeline</h1>
+          <p className="text-muted-foreground">Kanban visual do funil comercial</p>
+        </div>
+        <Button onClick={() => setNewLeadOpen(true)} size="sm">
+          <Plus className="h-4 w-4 mr-1" /> Novo Lead
+        </Button>
       </div>
+
+      <NewLeadKanbanModal open={newLeadOpen} onClose={() => setNewLeadOpen(false)} />
 
       <KanbanFilters filters={filters} onFiltersChange={setFilters} />
 
