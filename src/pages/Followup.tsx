@@ -748,8 +748,8 @@ export default function Followup() {
                   <SelectItem value="proposta_enviada">
                     Proposta Enviada
                   </SelectItem>
-                  <SelectItem value="ganha">Ganha</SelectItem>
-                  <SelectItem value="perdida">Perdida</SelectItem>
+                  <SelectItem value="fechado">Fechado</SelectItem>
+                  <SelectItem value="perdido">Perdido</SelectItem>
                 </SelectContent>
               </Select>
             )}
