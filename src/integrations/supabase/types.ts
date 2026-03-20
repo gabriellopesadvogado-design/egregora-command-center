@@ -419,6 +419,7 @@ export type Database = {
       }
       crm_meetings: {
         Row: {
+          avaliacao_reuniao: string | null
           closer_id: string | null
           created_at: string | null
           data_fechamento: string | null
@@ -444,6 +445,7 @@ export type Database = {
           whatsapp_lead: string | null
         }
         Insert: {
+          avaliacao_reuniao?: string | null
           closer_id?: string | null
           created_at?: string | null
           data_fechamento?: string | null
@@ -469,6 +471,7 @@ export type Database = {
           whatsapp_lead?: string | null
         }
         Update: {
+          avaliacao_reuniao?: string | null
           closer_id?: string | null
           created_at?: string | null
           data_fechamento?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.crm_meetings ADD COLUMN avaliacao_reuniao text;

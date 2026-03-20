@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { validatePhone, PHONE_ERROR_MESSAGE } from "@/utils/normalizePhone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Undo2, Eye, Phone } from "lucide-react";
@@ -21,7 +19,9 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DealDetailPanel } from "@/components/pipeline/DealDetailPanel";
 import { useStatusTransition } from "@/hooks/useStatusTransition";
-import { useUpdateMeeting, type Meeting, type MeetingStatus, type CrmStatus } from "@/hooks/useMeetings";
+import { useUpdateMeeting, type Meeting, type CrmStatus } from "@/hooks/useMeetings";
+import { QualificacaoSelect } from "@/components/vendas/QualificacaoSelect";
+import type { AvaliacaoReuniao } from "@/hooks/useMeetings";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -46,6 +46,16 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 const editableStatuses: CrmStatus[] = [
   "reuniao_agendada", "reuniao_realizada", "proposta_enviada",
   "followup_ativo", "contrato_enviado", "fechado", "perdido",
+];
+
+const fonteOptions = [
+  { value: "google", label: "Google" },
+  { value: "meta", label: "Meta" },
+  { value: "blog", label: "Blog" },
+  { value: "organico", label: "Orgânico" },
+  { value: "indicacao", label: "Indicação" },
+  { value: "reativacao", label: "Reativação" },
+  { value: "outros", label: "Outro" },
 ];
 
 export function VendasTable({ meetings, isLoading }: VendasTableProps) {
@@ -93,6 +103,26 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
 
   const handleStatusChange = (meeting: Meeting, newStatus: CrmStatus) => {
     requestStatusChange(meeting, newStatus);
+  };
+
+  const handleFonteChange = async (meeting: Meeting, newOrigem: string) => {
+    if (!meeting.lead_id) return;
+    try {
+      await supabase.from("crm_leads").update({ origem: newOrigem }).eq("id", meeting.lead_id);
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      toast.success("Fonte atualizada");
+    } catch {
+      toast.error("Erro ao atualizar fonte");
+    }
+  };
+
+  const handleQualificacaoChange = async (meeting: Meeting, value: AvaliacaoReuniao) => {
+    try {
+      await updateMeeting.mutateAsync({ id: meeting.id, avaliacao_reuniao: value });
+      toast.success("Qualificação atualizada");
+    } catch {
+      toast.error("Erro ao salvar qualificação");
+    }
   };
 
   const getAgingDays = (date: string): number => {
@@ -155,20 +185,21 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
             <TableRow className="bg-muted/50">
               <TableHead className="w-[70px] font-semibold">Horário</TableHead>
               <TableHead className="font-semibold">Lead</TableHead>
-              <TableHead className="w-[150px] font-semibold">Telefone</TableHead>
+              <TableHead className="w-[140px] font-semibold">Telefone</TableHead>
               <TableHead className="w-[90px] font-semibold">Data</TableHead>
+              <TableHead className="w-[120px] font-semibold">Fonte</TableHead>
               <TableHead className="w-[130px] font-semibold">Status</TableHead>
               <TableHead className="w-[180px] font-semibold">Ações</TableHead>
-              <TableHead className="w-[110px] font-semibold">Valor</TableHead>
-              <TableHead className="w-[100px] font-semibold">Closer</TableHead>
+              <TableHead className="w-[130px] font-semibold">Qualificação</TableHead>
+              <TableHead className="w-[110px] font-semibold">Valor Líquido</TableHead>
               <TableHead className="w-[100px] font-semibold">SDR</TableHead>
-              <TableHead className="min-w-[160px] font-semibold">Observação</TableHead>
+              <TableHead className="min-w-[160px] font-semibold">Obs</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {meetings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   Nenhuma reunião encontrada.
                 </TableCell>
               </TableRow>
@@ -179,6 +210,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                 const fu = followupCounts.get(meeting.id);
                 const showWinLose = ["proposta_enviada", "followup_ativo", "contrato_enviado"].includes(status);
                 const aging = meeting.data_proposta ? getAgingDays(meeting.data_proposta) : null;
+                const leadOrigem = (meeting.leads as any)?.origem || null;
 
                 return (
                   <TableRow
@@ -189,16 +221,19 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                       status === "perdido" && "bg-red-50/50 dark:bg-red-950/10",
                     )}
                   >
+                    {/* Horário */}
                     <TableCell className="font-medium text-sm tabular-nums">
                       {meeting.data_reuniao ? format(new Date(meeting.data_reuniao), "HH:mm") : "—"}
                     </TableCell>
 
+                    {/* Lead */}
                     <TableCell>
                       <button onClick={() => setSelectedMeeting(meeting)} className="text-left hover:underline font-medium">
                         {meeting.nome_lead}
                       </button>
                     </TableCell>
 
+                    {/* Telefone */}
                     <TableCell>
                       {meeting.telefone_lead ? (
                         <a href={`tel:${meeting.telefone_lead}`} className="flex items-center gap-1 text-sm text-primary hover:underline">
@@ -207,10 +242,31 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                       ) : <span className="text-sm text-muted-foreground italic">—</span>}
                     </TableCell>
 
+                    {/* Data */}
                     <TableCell className="text-sm text-muted-foreground tabular-nums">
                       {meeting.data_reuniao ? format(new Date(meeting.data_reuniao), "dd/MM/yy") : "—"}
                     </TableCell>
 
+                    {/* Fonte */}
+                    <TableCell>
+                      <Select
+                        value={leadOrigem || ""}
+                        onValueChange={(v) => handleFonteChange(meeting, v)}
+                      >
+                        <SelectTrigger className="h-7 text-xs border-0 bg-transparent hover:bg-muted/50 w-full p-1">
+                          <SelectValue placeholder="—">
+                            {leadOrigem ? fonteOptions.find(f => f.value === leadOrigem)?.label || leadOrigem : "—"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fonteOptions.map(f => (
+                            <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    {/* Status */}
                     <TableCell>
                       <Select
                         value={status}
@@ -226,7 +282,6 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                           })}
                         </SelectContent>
                       </Select>
-                      {/* Aging + FU badges */}
                       {aging !== null && status === "proposta_enviada" && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold", getAgingBadgeClass(aging))}>
@@ -246,6 +301,7 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                       )}
                     </TableCell>
 
+                    {/* Ações */}
                     <TableCell>
                       <div className="flex items-center gap-1 flex-wrap">
                         {status === "reuniao_agendada" && (
@@ -279,6 +335,15 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                       </div>
                     </TableCell>
 
+                    {/* Qualificação */}
+                    <TableCell>
+                      <QualificacaoSelect
+                        value={(meeting.avaliacao_reuniao as AvaliacaoReuniao) || null}
+                        onValueChange={(v) => handleQualificacaoChange(meeting, v)}
+                      />
+                    </TableCell>
+
+                    {/* Valor Líquido */}
                     <TableCell className="text-sm">
                       {showWinLose ? (
                         <Popover
@@ -308,9 +373,10 @@ export function VendasTable({ meetings, isLoading }: VendasTableProps) {
                       ) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
 
-                    <TableCell className="text-sm">{meeting.closer?.nome || "—"}</TableCell>
+                    {/* SDR */}
                     <TableCell className="text-sm text-muted-foreground">{meeting.sdr?.nome || "—"}</TableCell>
 
+                    {/* Obs */}
                     <TableCell>
                       {editingCell?.id === meeting.id && editingCell.field === "observacao" ? (
                         <Input value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={() => handleEditBlur(meeting.id, "observacao")} onKeyDown={e => handleKeyDown(e, meeting.id, "observacao")} autoFocus className="h-8 text-sm" />

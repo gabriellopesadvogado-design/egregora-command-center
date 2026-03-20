@@ -48,7 +48,7 @@ function enrichMeeting(raw: any): Meeting {
     criado_em: raw.created_at,
     observacao: raw.notas,
     fonte_lead: null,
-    avaliacao_reuniao: null,
+    avaliacao_reuniao: raw.avaliacao_reuniao ?? null,
     caixa_gerado: null,
     telefone: raw.telefone_lead,
   };
@@ -178,7 +178,6 @@ export function useUpdateMeeting() {
       // Remove fields that don't exist in the table
       delete mapped.caixa_gerado;
       delete mapped.fonte_lead;
-      delete mapped.avaliacao_reuniao;
       delete mapped.primeiro_followup_em;
       delete mapped.observacao;
 
