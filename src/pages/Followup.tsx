@@ -214,13 +214,13 @@ export default function Followup() {
       {
         onSuccess: () => {
           toast({
-            title: lossTipo === "perdida_simples"
+            title: lossTipo === "perdido_simples"
               ? "Deal perdido (simples) — cadência mensal mantida"
               : "Deal perdido (definitivo) — removido do follow-up",
           });
           setLossModal(null);
           setLossMotivo("");
-          setLossTipo("perdida_simples");
+          setLossTipo("perdido_simples");
         },
         onError: (err) =>
           toast({ title: "Erro ao marcar como perdido", description: err.message, variant: "destructive" }),
