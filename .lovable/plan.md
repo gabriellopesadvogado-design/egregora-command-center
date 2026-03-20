@@ -1,97 +1,125 @@
 
 
-## Página /reativacao — Funil de Reativação
+## Integração Pipeline ↔ Pré-Venda ↔ Vendas
 
-### Descoberta
+### Summary
 
-As tabelas `crm_motivos_perda` e `crm_reativacoes` **não existem** no banco. Serão criadas via migração SQL.
+Centralizar mudanças de status via hook `useStatusTransition`, criar 4 modais de transição obrigatória, adicionar Supabase Realtime, e reescrever /pre-venda e /vendas para refletirem a spec.
 
-### Migração SQL
+### Files to Create/Edit
 
-```sql
--- Motivos de perda com regras de reativação
-CREATE TABLE public.crm_motivos_perda (
-  id uuid PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
-  motivo text NOT NULL UNIQUE,
-  reativavel boolean NOT NULL DEFAULT true,
-  dias_minimos_reativacao integer NOT NULL DEFAULT 30,
-  created_at timestamptz DEFAULT now()
-);
+| # | File | Action |
+|---|------|--------|
+| 1 | `src/hooks/useStatusTransition.tsx` | **New** — hook + context provider with modal state machine |
+| 2 | `src/components/shared/AgendarReuniaoModal.tsx` | **New** — modal reuniao_agendada |
+| 3 | `src/components/shared/ReuniaoRealizadaModal.tsx` | **New** — modal reuniao_realizada |
+| 4 | `src/components/shared/PropostaEnviadaModal.tsx` | **New** — modal proposta_enviada |
+| 5 | `src/components/shared/ContratoEnviadoModal.tsx` | **New** — modal contrato_enviado |
+| 6 | `src/hooks/useMeetings.ts` | **Edit** — add Realtime subscription |
+| 7 | `src/components/pipeline/KanbanBoard.tsx` | **Edit** — use useStatusTransition instead of inline modal logic |
+| 8 | `src/pages/PreVenda.tsx` | **Rewrite** — new layout per spec |
+| 9 | `src/components/pre-venda/PreVendaTable.tsx` | **New** — replace MeetingsTable with spec-compliant table |
+| 10 | `src/components/pre-venda/PreVendaQuickAdd.tsx` | **New** — inline quick-add row |
+| 11 | `src/pages/Vendas.tsx` | **Rewrite** — new filters and layout per spec |
+| 12 | `src/components/vendas/VendasTable.tsx` | **Rewrite** — use useStatusTransition, contextual actions per status |
+| 13 | `src/App.tsx` | **Edit** — wrap routes with StatusTransitionProvider |
 
-ALTER TABLE public.crm_motivos_perda ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Read motivos" ON public.crm_motivos_perda FOR SELECT TO authenticated USING (true);
+### Architecture: useStatusTransition
 
--- Seed dos 11 motivos
-INSERT INTO public.crm_motivos_perda (motivo, reativavel, dias_minimos_reativacao) VALUES
-  ('Não possui orçamento', true, 60),
-  ('Não respondeu proposta', true, 30),
-  ('Não assinou contrato', true, 30),
-  ('Fechou com corrente', true, 90),
-  ('Não consegui contato', true, 30),
-  ('Não tem requisitos mínimos', false, 0),
-  ('Não quis continuar com o processo', true, 60),
-  ('Desqualificado (busca visto para outro país)', false, 0),
-  ('Brasileiro', false, 0),
-  ('Tem pedido de refúgio', false, 0),
-  ('Outro', true, 90);
-
--- Reativações
-CREATE TABLE public.crm_reativacoes (
-  id uuid PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
-  meeting_id uuid NOT NULL REFERENCES public.crm_meetings(id) ON DELETE CASCADE,
-  motivo_perda_original text NOT NULL,
-  data_perda timestamptz NOT NULL,
-  data_reativacao timestamptz DEFAULT now(),
-  faixa_reativacao text NOT NULL,
-  responsavel_reativacao_id uuid NOT NULL,
-  notas_reativacao text,
-  resultado text NOT NULL DEFAULT 'em_andamento',
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.crm_reativacoes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Read reativacoes" ON public.crm_reativacoes FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Insert reativacoes" ON public.crm_reativacoes FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Update reativacoes" ON public.crm_reativacoes
-  FOR UPDATE TO authenticated USING (is_admin_or_gestor(auth.uid()) OR responsavel_reativacao_id = auth.uid());
+```text
+StatusTransitionProvider (wraps AppLayout)
+  └─ Context provides: requestStatusChange(meeting, newStatus)
+  └─ Renders all 6 modals (hidden until triggered):
+       AgendarReuniaoModal, ReuniaoRealizadaModal, PropostaEnviadaModal,
+       ContratoEnviadoModal, FechamentoModal, MotivoPerdaModal
+  └─ For non-modal statuses: direct UPDATE via useUpdateMeeting
 ```
 
-### Arquivos
+**Hook API:**
+```typescript
+const { requestStatusChange } = useStatusTransition();
+// Returns a Promise<boolean> — true if status changed, false if cancelled
+await requestStatusChange(meeting, "reuniao_agendada");
+```
 
-| # | Arquivo | Ação |
-|---|---------|------|
-| 1 | SQL migration | Criar `crm_motivos_perda` + `crm_reativacoes` + seed + RLS |
-| 2 | `src/pages/Reativacao.tsx` | **Novo** — página com abas Elegíveis/Histórico |
-| 3 | `src/components/reativacao/ReativacaoElegiveis.tsx` | **Novo** — cards resumo + filtros + tabela de deals perdidos |
-| 4 | `src/components/reativacao/ReativacaoHistorico.tsx` | **Novo** — tabela de reativações com botões de resultado |
-| 5 | `src/components/reativacao/ReativacaoModal.tsx` | **Novo** — modal de reativação com faixa/responsável/notas |
-| 6 | `src/App.tsx` | Adicionar rota `/reativacao` |
-| 7 | `src/components/layout/Sidebar.tsx` | Adicionar "Reativação" com ícone `RefreshCw` entre Forecast e ROI |
+**Transitions requiring modals:**
+- `reuniao_agendada` → AgendarReuniaoModal (date+time, closer, SDR, tipo_servico, obs)
+- `reuniao_realizada` → ReuniaoRealizadaModal (confirmation + optional note → INSERT crm_notas)
+- `proposta_enviada` → PropostaEnviadaModal (valor_proposta, data_proposta, obs)
+- `contrato_enviado` → ContratoEnviadoModal (valor confirmado, data envio)
+- `fechado` → FechamentoModal (existing)
+- `perdido` → MotivoPerdaModal (existing)
 
-### Arquitetura
+All other transitions (novo_lead→qualificado, qualificado→elegivel, etc.) → direct UPDATE.
 
-#### ReativacaoElegiveis
+### Realtime (Rule 5)
 
-- Queries: `crm_meetings WHERE status = 'perdido'`, `crm_motivos_perda`, `crm_reativacoes` (para checar se já existe em_andamento)
-- 4 cards KPI: total perdidos, elegíveis, reativados mês, taxa conversão
-- Filtros: motivo de perda, período, closer original, toggle "apenas elegíveis"
-- Tabela com coluna "Elegível" (4 estados: verde/vermelho/amarelo/azul) e botão "Reativar" apenas se verde
-- Cálculo de elegibilidade: `reativavel = true` E `dias >= dias_minimos` E sem reativação `em_andamento`
+Add to `useMeetings` hook:
+```typescript
+useEffect(() => {
+  const channel = supabase
+    .channel('crm_meetings_realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_meetings' },
+      () => queryClient.invalidateQueries({ queryKey: ["meetings"] })
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, []);
+```
 
-#### ReativacaoModal
+### /pre-venda Rewrite
 
-- Props: `meeting` (deal perdido), `open`, `onClose`, `onSuccess`
-- Auto-sugere faixa pela idade da perda (≤30d → closer, 31-60 → 60_dias_sdr, etc.)
-- Dropdown responsável muda conforme faixa (closers vs SDRs)
-- Ao confirmar: INSERT `crm_reativacoes` + UPDATE `crm_meetings` (status=novo_lead, limpa motivo_perda, seta closer/sdr, appenda notas)
+**Header:** "Pré-Venda" + "Agenda de {data formatada}". CloserDayAgenda component stays (already queries by date).
 
-#### ReativacaoHistorico
+**Filters:** Period (Hoje/Semana/Mês), closer dropdown (admin/gestor only; closer pre-filtered), search.
 
-- Query: `crm_reativacoes` JOIN `crm_meetings` JOIN `core_users`
-- Tabela com colunas: Lead, Motivo Original, Perdido em, Reativado em, Faixa, Responsável, Resultado (badge)
-- Botões "Marcar como Fechado" / "Marcar como Perdido Novamente" para registros `em_andamento`
+**Table query:** `crm_meetings WHERE status IN ('reuniao_agendada','reuniao_realizada','proposta_enviada') AND data_reuniao IS NOT NULL`.
 
-#### Sidebar
+**Columns:** Horário, Lead, Telefone (tel: link), Data, Fonte (via lead_id→crm_leads.origem), Status badge, Closer, SDR, Ações.
 
-Inserir `{ name: "Reativação", href: "/reativacao", icon: RefreshCw, roles: ["admin", "gestor", "sdr"] }` entre Forecast e ROI por Canal.
+**Actions per status:**
+- `reuniao_agendada`: "Marcar como Realizada" (→ ReuniaoRealizadaModal), "Adicionar Observação" (quick INSERT crm_notas)
+- `reuniao_realizada`: "Enviar Proposta" (→ PropostaEnviadaModal)
+- Always: "Ver Detalhes" (→ DealDetailPanel)
+
+**QuickAdd row:** inline fields for time, name, phone, date, fonte, closer, SDR(auto), obs. INSERT crm_meetings + crm_leads.
+
+### /vendas Rewrite
+
+**Query:** `crm_meetings WHERE status NOT IN ('nao_elegivel','novo_lead','qualificado','elegivel')`.
+
+**Status dropdown editable** in each row — uses `requestStatusChange()` so same modals apply.
+
+**Contextual actions per status:**
+- `proposta_enviada`/`followup_ativo`/`contrato_enviado`: "Ganhar"→FechamentoModal, "Perder"→MotivoPerdaModal, show valor/aging/FU count
+- `reuniao_agendada`: "Marcar como Realizada"
+- `reuniao_realizada`: "Enviar Proposta"
+
+**DealDetailPanel:** reuse existing component on lead click.
+
+### KanbanBoard Changes
+
+Replace inline modal state + handleDrop logic with:
+```typescript
+const { requestStatusChange } = useStatusTransition();
+const handleDrop = (meetingId, newStatus) => {
+  const meeting = meetings.find(m => m.id === meetingId);
+  if (meeting) requestStatusChange(meeting, newStatus);
+};
+```
+Remove FechamentoModal/MotivoPerdaModal renders from KanbanBoard (now in provider).
+
+### Modal Details
+
+**AgendarReuniaoModal:** Query `core_users` for closers (cargo IN closer/admin, ativo=true) and SDRs (cargo=sdr, ativo=true). Date+time picker. On confirm: UPDATE meeting with status, data_reuniao, closer_id, sdr_id, tipo_servico.
+
+**ReuniaoRealizadaModal:** Simple confirmation + optional textarea. On confirm: UPDATE status. If obs provided: INSERT crm_notas (tipo='reuniao').
+
+**PropostaEnviadaModal:** Numeric valor, date picker (default today). On confirm: UPDATE status + valor_proposta + data_proposta. Then call `generate-followup-steps` edge function.
+
+**ContratoEnviadoModal:** Valor (pre-filled from valor_proposta), date picker. On confirm: UPDATE status.
+
+### No DB changes needed
+
+All tables exist. RLS already supports the operations needed. The `core_users` SELECT policy requires `auth.uid() = id OR is_admin()` — this will be handled by using `useAllProfiles()` which already works for populating dropdowns.
 
