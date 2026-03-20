@@ -29,7 +29,7 @@ export function QuickAddRow() {
   const [telefoneError, setTelefoneError] = useState("");
   const [data, setData] = useState<Date>(new Date());
   const [fonte, setFonte] = useState<string>("outros");
-  const [status, setStatus] = useState<string>("agendada");
+  const [status, setStatus] = useState<string>("reuniao_agendada");
   const [closerId, setCloserId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -46,7 +46,7 @@ export function QuickAddRow() {
     setTelefoneError("");
     setData(new Date());
     setFonte("outros");
-    setStatus("agendada");
+    setStatus("reuniao_agendada");
     setCloserId("");
     setObservacao("");
   };
@@ -77,12 +77,11 @@ export function QuickAddRow() {
     try {
       const result = await createMeeting.mutateAsync({
         nome_lead: nomeLead.trim(),
-        inicio_em: inicioEm.toISOString(),
-        fonte_lead: fonte as any,
+        data_reuniao: inicioEm.toISOString(),
         status: status as any,
         closer_id: closerId,
-        observacao: observacao.trim() || null,
-        telefone: normalized,
+        notas: observacao.trim() || null,
+        telefone_lead: normalized,
       } as any);
 
 
@@ -168,9 +167,8 @@ export function QuickAddRow() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="agendada">🕐 Agendada</SelectItem>
-            <SelectItem value="aconteceu">✅ Realizada</SelectItem>
-            <SelectItem value="cancelada">🚫 Cancelada</SelectItem>
+            <SelectItem value="reuniao_agendada">🕐 Agendada</SelectItem>
+            <SelectItem value="reuniao_realizada">✅ Realizada</SelectItem>
           </SelectContent>
         </Select>
       </TableCell>
