@@ -1,13 +1,11 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { KanbanColumn } from "./KanbanColumn";
-import { FechamentoModal } from "./FechamentoModal";
 import { DealDetailPanel } from "./DealDetailPanel";
-import { MotivoPerdaModal } from "@/components/shared/MotivoPerdaModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUpdateMeeting, type Meeting, type CrmStatus } from "@/hooks/useMeetings";
+import { type Meeting, type CrmStatus } from "@/hooks/useMeetings";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useStatusTransition } from "@/hooks/useStatusTransition";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -31,11 +29,9 @@ const columns: { status: CrmStatus; title: string; colorClass: string }[] = [
 
 export function KanbanBoard({ meetings }: KanbanBoardProps) {
   const isMobile = useIsMobile();
-  const updateMeeting = useUpdateMeeting();
+  const { requestStatusChange } = useStatusTransition();
 
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [fechamentoModal, setFechamentoModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
-  const [lossModal, setLossModal] = useState<{ open: boolean; meeting: Meeting | null }>({ open: false, meeting: null });
 
   // Followup today query
   const today = format(new Date(), "yyyy-MM-dd");
@@ -63,60 +59,7 @@ export function KanbanBoard({ meetings }: KanbanBoardProps) {
   const handleDrop = (meetingId: string, newStatus: CrmStatus) => {
     const meeting = meetings.find((m) => m.id === meetingId);
     if (!meeting || meeting.status === newStatus) return;
-
-    if (newStatus === "fechado") {
-      setFechamentoModal({ open: true, meeting });
-      return;
-    }
-    if (newStatus === "perdido") {
-      setLossModal({ open: true, meeting });
-      return;
-    }
-
-    handleStatusChange(meetingId, newStatus);
-  };
-
-  const handleStatusChange = async (meetingId: string, newStatus: CrmStatus) => {
-    try {
-      await updateMeeting.mutateAsync({ id: meetingId, status: newStatus });
-      toast.success("Status atualizado");
-    } catch {
-      toast.error("Erro ao atualizar status");
-    }
-  };
-
-  const handleFechamentoConfirm = async (valorFechamento: number, dataFechamento: string) => {
-    if (!fechamentoModal.meeting) return;
-    try {
-      await updateMeeting.mutateAsync({
-        id: fechamentoModal.meeting.id,
-        status: "fechado",
-        valor_fechamento: valorFechamento,
-        data_fechamento: dataFechamento,
-      });
-      toast.success("🏆 Deal fechado com sucesso!");
-      setFechamentoModal({ open: false, meeting: null });
-    } catch {
-      toast.error("Erro ao fechar deal");
-    }
-  };
-
-  const handleLossConfirm = async (motivo: string, observacao: string) => {
-    if (!lossModal.meeting) return;
-    try {
-      const currentNotas = lossModal.meeting.notas || "";
-      const perdaNote = `\n[PERDIDO - ${format(new Date(), "dd/MM/yyyy")}] ${observacao}`.trim();
-      await updateMeeting.mutateAsync({
-        id: lossModal.meeting.id,
-        status: "perdido",
-        motivo_perda: motivo,
-        notas: currentNotas + perdaNote,
-      });
-      toast.info("Deal marcado como perdido");
-      setLossModal({ open: false, meeting: null });
-    } catch {
-      toast.error("Erro ao registrar perda");
-    }
+    requestStatusChange(meeting, newStatus);
   };
 
   const renderColumns = () =>
@@ -162,19 +105,6 @@ export function KanbanBoard({ meetings }: KanbanBoardProps) {
           ))}
         </Tabs>
 
-        <FechamentoModal
-          open={fechamentoModal.open}
-          onClose={() => setFechamentoModal({ open: false, meeting: null })}
-          onConfirm={handleFechamentoConfirm}
-          isLoading={updateMeeting.isPending}
-          valorProposta={fechamentoModal.meeting?.valor_proposta}
-        />
-        <MotivoPerdaModal
-          open={lossModal.open}
-          onClose={() => setLossModal({ open: false, meeting: null })}
-          onConfirm={handleLossConfirm}
-          isLoading={updateMeeting.isPending}
-        />
         <DealDetailPanel
           meeting={selectedMeeting}
           open={!!selectedMeeting}
@@ -193,19 +123,6 @@ export function KanbanBoard({ meetings }: KanbanBoardProps) {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      <FechamentoModal
-        open={fechamentoModal.open}
-        onClose={() => setFechamentoModal({ open: false, meeting: null })}
-        onConfirm={handleFechamentoConfirm}
-        isLoading={updateMeeting.isPending}
-        valorProposta={fechamentoModal.meeting?.valor_proposta}
-      />
-      <MotivoPerdaModal
-        open={lossModal.open}
-        onClose={() => setLossModal({ open: false, meeting: null })}
-        onConfirm={handleLossConfirm}
-        isLoading={updateMeeting.isPending}
-      />
       <DealDetailPanel
         meeting={selectedMeeting}
         open={!!selectedMeeting}
