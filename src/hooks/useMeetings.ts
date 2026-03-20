@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesUpdate, Database } from "@/integrations/supabase/types";
@@ -53,7 +54,32 @@ function enrichMeeting(raw: any): Meeting {
   };
 }
 
+// Realtime subscription hook - invalidates meetings queries on any change
+export function useMeetingsRealtime() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("crm_meetings_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "crm_meetings" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["meetings"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+}
+
 export function useMeetings(filters?: MeetingsFilters) {
+  // Subscribe to realtime updates
+  useMeetingsRealtime();
+
   return useQuery({
     queryKey: ["meetings", filters],
     queryFn: async () => {
