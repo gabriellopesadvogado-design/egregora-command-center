@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 
-type LossOutcome = "perdida_simples" | "perdida_definitiva";
+type LossOutcome = "perdido_simples" | "perdido";
 
 interface VendasLossModalProps {
   open: boolean;
