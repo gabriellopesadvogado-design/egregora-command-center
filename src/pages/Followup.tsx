@@ -120,7 +120,7 @@ export default function Followup() {
   // Outcome modals state
   const [winConfirm, setWinConfirm] = useState<FollowupStep | null>(null);
   const [lossModal, setLossModal] = useState<FollowupStep | null>(null);
-  const [lossTipo, setLossTipo] = useState<"perdido_simples" | "perdido">("perdido_simples");
+  const [lossTipo, setLossTipo] = useState<"perdida_simples" | "perdida_definitiva">("perdida_simples");
   const [lossMotivo, setLossMotivo] = useState("");
 
   const [openSections, setOpenSections] = useState({
@@ -191,7 +191,7 @@ export default function Followup() {
   const handleWinConfirm = () => {
     if (!winConfirm) return;
     setDealOutcome.mutate(
-      { meetingId: winConfirm.meeting_id, outcome: "fechado" },
+      { meetingId: winConfirm.meeting_id, outcome: "ganha" },
       {
         onSuccess: () => {
           toast({ title: "🏆 Deal marcado como ganho!" });
@@ -214,13 +214,13 @@ export default function Followup() {
       {
         onSuccess: () => {
           toast({
-            title: lossTipo === "perdido_simples"
+            title: lossTipo === "perdida_simples"
               ? "Deal perdido (simples) — cadência mensal mantida"
               : "Deal perdido (definitivo) — removido do follow-up",
           });
           setLossModal(null);
           setLossMotivo("");
-          setLossTipo("perdido_simples");
+          setLossTipo("perdida_simples");
         },
         onError: (err) =>
           toast({ title: "Erro ao marcar como perdido", description: err.message, variant: "destructive" }),
@@ -471,7 +471,7 @@ export default function Followup() {
                       className="border-destructive/50 text-destructive hover:bg-destructive/10"
                       onClick={() => {
                         setLossModal(step);
-                        setLossTipo("perdido_simples");
+                        setLossTipo("perdida_simples");
                         setLossMotivo("");
                       }}
                     >
@@ -748,8 +748,8 @@ export default function Followup() {
                   <SelectItem value="proposta_enviada">
                     Proposta Enviada
                   </SelectItem>
-                  <SelectItem value="fechado">Fechado</SelectItem>
-                  <SelectItem value="perdido">Perdido</SelectItem>
+                  <SelectItem value="ganha">Ganha</SelectItem>
+                  <SelectItem value="perdida">Perdida</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -823,7 +823,7 @@ export default function Followup() {
             </p>
             <RadioGroup value={lossTipo} onValueChange={(v) => setLossTipo(v as any)}>
               <div className="flex items-start gap-3 p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
-                <RadioGroupItem value="perdido_simples" id="loss-simples" className="mt-0.5" />
+                <RadioGroupItem value="perdida_simples" id="loss-simples" className="mt-0.5" />
                 <Label htmlFor="loss-simples" className="cursor-pointer">
                   <div className="font-medium">Perdido simples (manter mensal)</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
@@ -832,7 +832,7 @@ export default function Followup() {
                 </Label>
               </div>
               <div className="flex items-start gap-3 p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
-                <RadioGroupItem value="perdido" id="loss-definitiva" className="mt-0.5" />
+                <RadioGroupItem value="perdida_definitiva" id="loss-definitiva" className="mt-0.5" />
                 <Label htmlFor="loss-definitiva" className="cursor-pointer">
                   <div className="font-medium">Perdido definitivo</div>
                   <div className="text-xs text-muted-foreground mt-0.5">

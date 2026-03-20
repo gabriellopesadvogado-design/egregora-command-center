@@ -309,30 +309,6 @@ export type Database = {
           },
         ]
       }
-      crm_hubspot_reativacao_map: {
-        Row: {
-          faixa: string
-          hubspot_pipeline_id: string | null
-          hubspot_stage_id: string
-          hubspot_stage_name: string
-          id: string
-        }
-        Insert: {
-          faixa: string
-          hubspot_pipeline_id?: string | null
-          hubspot_stage_id: string
-          hubspot_stage_name: string
-          id?: string
-        }
-        Update: {
-          faixa?: string
-          hubspot_pipeline_id?: string | null
-          hubspot_stage_id?: string
-          hubspot_stage_name?: string
-          id?: string
-        }
-        Relationships: []
-      }
       crm_hubspot_stage_map: {
         Row: {
           astra_status: Database["public"]["Enums"]["crm_status"]
