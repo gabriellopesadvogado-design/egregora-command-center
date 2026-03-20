@@ -36,7 +36,7 @@ export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasL
   const handleOpenChange = (o: boolean) => {
     if (!o) {
       onClose();
-      setOutcome("perdida_definitiva");
+      setOutcome("perdido");
       setMotivo("");
     }
   };
