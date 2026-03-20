@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     }
 
     // Permission check
-    const { data: isAdminManager } = await db.rpc("is_admin_or_manager", {
+    const { data: isAdminManager } = await db.rpc("is_admin_or_gestor", {
       _user_id: userId,
     });
     if (!isAdminManager && meeting.closer_id !== userId) {
