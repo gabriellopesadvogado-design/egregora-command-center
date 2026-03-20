@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     // Fetch meeting
     const { data: meeting, error: meetErr } = await db
       .from("crm_meetings")
-      .select("id, closer_id, data_reuniao")
+      .select("id, closer_id, sdr_id, data_reuniao")
       .eq("id", meeting_id)
       .single();
 
@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     const { data: isAdminManager } = await db.rpc("is_admin_or_gestor", {
       _user_id: userId,
     });
-    if (!isAdminManager && meeting.closer_id !== userId) {
+    if (!isAdminManager && meeting.closer_id !== userId && meeting.sdr_id !== userId) {
       return new Response(
         JSON.stringify({ error: "Forbidden" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
