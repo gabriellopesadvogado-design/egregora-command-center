@@ -16,7 +16,7 @@ interface KanbanBoardProps {
 
 const columns: { status: CrmStatus; title: string; colorClass: string }[] = [
   { status: "novo_lead", title: "Novo Lead", colorClass: "border-t-slate-300" },
-  { status: "qualificado", title: "Qualificado", colorClass: "border-t-sky-300" },
+  { status: "qualificado", title: "Contactado", colorClass: "border-t-sky-300" },
   { status: "nao_elegivel", title: "Não Elegível", colorClass: "border-t-gray-400" },
   { status: "elegivel", title: "Elegível", colorClass: "border-t-blue-400" },
   { status: "reuniao_agendada", title: "Reunião Agendada", colorClass: "border-t-yellow-400" },
