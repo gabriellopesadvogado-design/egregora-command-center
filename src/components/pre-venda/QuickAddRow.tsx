@@ -168,9 +168,8 @@ export function QuickAddRow() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="agendada">🕐 Agendada</SelectItem>
-            <SelectItem value="aconteceu">✅ Realizada</SelectItem>
-            <SelectItem value="cancelada">🚫 Cancelada</SelectItem>
+            <SelectItem value="reuniao_agendada">🕐 Agendada</SelectItem>
+            <SelectItem value="reuniao_realizada">✅ Realizada</SelectItem>
           </SelectContent>
         </Select>
       </TableCell>

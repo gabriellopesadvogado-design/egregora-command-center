@@ -56,7 +56,7 @@ export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasL
               className="space-y-2"
             >
               <div className="flex items-start gap-2">
-                <RadioGroupItem value="perdida_simples" id="simples" className="mt-0.5" />
+                <RadioGroupItem value="perdido_simples" id="simples" className="mt-0.5" />
                 <Label htmlFor="simples" className="cursor-pointer leading-tight">
                   <span className="font-medium">Perdido simples</span>
                   <span className="block text-xs text-muted-foreground">
@@ -65,7 +65,7 @@ export function VendasLossModal({ open, onClose, onConfirm, isLoading }: VendasL
                 </Label>
               </div>
               <div className="flex items-start gap-2">
-                <RadioGroupItem value="perdida_definitiva" id="definitiva" className="mt-0.5" />
+                <RadioGroupItem value="perdido" id="definitiva" className="mt-0.5" />
                 <Label htmlFor="definitiva" className="cursor-pointer leading-tight">
                   <span className="font-medium">Perdido definitivo</span>
                   <span className="block text-xs text-muted-foreground">

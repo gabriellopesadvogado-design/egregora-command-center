@@ -832,7 +832,7 @@ export default function Followup() {
                 </Label>
               </div>
               <div className="flex items-start gap-3 p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
-                <RadioGroupItem value="perdida_definitiva" id="loss-definitiva" className="mt-0.5" />
+                <RadioGroupItem value="perdido" id="loss-definitiva" className="mt-0.5" />
                 <Label htmlFor="loss-definitiva" className="cursor-pointer">
                   <div className="font-medium">Perdido definitivo</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
