@@ -4,16 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -21,32 +15,25 @@ import { VendasTable } from "@/components/vendas/VendasTable";
 import { SimplePeriodFilter, getDateRangeForPeriod, type PeriodType } from "@/components/pre-venda/SimplePeriodFilter";
 import { useCloserMeetings } from "@/hooks/useCloserMeetings";
 import { useAllProfiles } from "@/hooks/useUsers";
-import type { MeetingsFilters as FiltersType, MeetingStatus, PlataformaOrigem } from "@/hooks/useMeetings";
+import type { MeetingsFilters as FiltersType, MeetingStatus, CrmStatus } from "@/hooks/useMeetings";
 
 const statusOptions: { value: MeetingStatus; label: string; emoji: string }[] = [
   { value: "reuniao_agendada", label: "Agendada", emoji: "🕐" },
   { value: "reuniao_realizada", label: "Realizada", emoji: "✅" },
   { value: "proposta_enviada", label: "Proposta Enviada", emoji: "🚀" },
+  { value: "followup_ativo", label: "Follow-up Ativo", emoji: "📞" },
+  { value: "contrato_enviado", label: "Contrato Enviado", emoji: "📄" },
   { value: "fechado", label: "Fechado", emoji: "🏆" },
   { value: "perdido", label: "Perdido", emoji: "💔" },
-  { value: "nao_elegivel", label: "Não Elegível", emoji: "🚫" },
 ];
 
-const fonteOptions: { value: PlataformaOrigem; label: string }[] = [
-  { value: "google", label: "Google" },
-  { value: "meta", label: "Meta" },
-  { value: "blog", label: "Blog" },
-  { value: "organico", label: "Orgânico" },
-  { value: "indicacao", label: "Indicação" },
-  { value: "reativacao", label: "Reativação" },
-  { value: "outros", label: "Outro" },
-];
+// Vendas page excludes early-pipeline statuses
+const VENDAS_EXCLUDED: CrmStatus[] = ["nao_elegivel", "novo_lead", "qualificado", "elegivel"];
 
 export default function Vendas() {
   const [period, setPeriod] = useState<PeriodType>("this_week");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<MeetingStatus[]>([]);
-  const [selectedFonte, setSelectedFonte] = useState<PlataformaOrigem[]>([]);
   const [selectedCloser, setSelectedCloser] = useState<string | undefined>();
   const [selectedSdr, setSelectedSdr] = useState<string | undefined>();
 
@@ -60,42 +47,30 @@ export default function Vendas() {
     ...dateRange,
     searchTerm: searchTerm || undefined,
     status: selectedStatus.length > 0 ? selectedStatus : undefined,
-    plataforma: selectedFonte.length > 0 ? selectedFonte : undefined,
     closerId: selectedCloser,
     sdrId: selectedSdr,
   };
 
-  const { data: meetings = [], isLoading } = useCloserMeetings(filters);
+  const { data: allMeetings = [], isLoading } = useCloserMeetings(filters);
+
+  // Filter out early-pipeline statuses
+  const meetings = allMeetings.filter(m => !VENDAS_EXCLUDED.includes(m.status as CrmStatus));
 
   const toggleStatus = (status: MeetingStatus) => {
     setSelectedStatus((prev) =>
-      prev.includes(status)
-        ? prev.filter((s) => s !== status)
-        : [...prev, status]
-    );
-  };
-
-  const toggleFonte = (fonte: PlataformaOrigem) => {
-    setSelectedFonte((prev) =>
-      prev.includes(fonte)
-        ? prev.filter((f) => f !== fonte)
-        : [...prev, fonte]
+      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
     );
   };
 
   const clearFilters = () => {
     setSelectedStatus([]);
-    setSelectedFonte([]);
     setSearchTerm("");
     setSelectedCloser(undefined);
     setSelectedSdr(undefined);
   };
 
   const activeFiltersCount = 
-    selectedStatus.length + 
-    selectedFonte.length + 
-    (selectedCloser ? 1 : 0) + 
-    (selectedSdr ? 1 : 0);
+    selectedStatus.length + (selectedCloser ? 1 : 0) + (selectedSdr ? 1 : 0);
   const hasFilters = activeFiltersCount > 0 || searchTerm.length > 0;
 
   return (
@@ -136,65 +111,37 @@ export default function Vendas() {
             </PopoverTrigger>
             <PopoverContent className="w-80" align="end">
               <div className="space-y-4">
-                {/* Header com botão limpar */}
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium">Filtros</h4>
                   {hasFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="h-auto px-2 py-1 text-xs"
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      Limpar
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto px-2 py-1 text-xs">
+                      <X className="h-3 w-3 mr-1" /> Limpar
                     </Button>
                   )}
                 </div>
 
-                {/* SDR - Select */}
                 <div className="space-y-2">
                   <Label className="text-sm">SDR</Label>
-                  <Select
-                    value={selectedSdr || "all"}
-                    onValueChange={(v) => setSelectedSdr(v === "all" ? undefined : v)}
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
+                  <Select value={selectedSdr || "all"} onValueChange={(v) => setSelectedSdr(v === "all" ? undefined : v)}>
+                    <SelectTrigger className="h-8"><SelectValue placeholder="Todos" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
-                      {sdrs.map((sdr) => (
-                        <SelectItem key={sdr.id} value={sdr.id}>
-                          {sdr.nome}
-                        </SelectItem>
-                      ))}
+                      {sdrs.map((sdr) => <SelectItem key={sdr.id} value={sdr.id}>{sdr.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Closer - Select */}
                 <div className="space-y-2">
                   <Label className="text-sm">Closer</Label>
-                  <Select
-                    value={selectedCloser || "all"}
-                    onValueChange={(v) => setSelectedCloser(v === "all" ? undefined : v)}
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
+                  <Select value={selectedCloser || "all"} onValueChange={(v) => setSelectedCloser(v === "all" ? undefined : v)}>
+                    <SelectTrigger className="h-8"><SelectValue placeholder="Todos" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
-                      {closers.map((closer) => (
-                        <SelectItem key={closer.id} value={closer.id}>
-                          {closer.nome}
-                        </SelectItem>
-                      ))}
+                      {closers.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Status - Checkboxes em grid */}
                 <div className="space-y-2">
                   <Label className="text-sm">Status</Label>
                   <div className="grid grid-cols-2 gap-2">
@@ -205,33 +152,8 @@ export default function Vendas() {
                           checked={selectedStatus.includes(option.value)}
                           onCheckedChange={() => toggleStatus(option.value)}
                         />
-                        <label
-                          htmlFor={`status-${option.value}`}
-                          className="text-xs cursor-pointer"
-                        >
+                        <label htmlFor={`status-${option.value}`} className="text-xs cursor-pointer">
                           {option.emoji} {option.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Origem - Checkboxes em grid */}
-                <div className="space-y-2">
-                  <Label className="text-sm">Origem</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {fonteOptions.map((option) => (
-                      <div key={option.value} className="flex items-center gap-1.5">
-                        <Checkbox
-                          id={`fonte-${option.value}`}
-                          checked={selectedFonte.includes(option.value)}
-                          onCheckedChange={() => toggleFonte(option.value)}
-                        />
-                        <label
-                          htmlFor={`fonte-${option.value}`}
-                          className="text-xs cursor-pointer"
-                        >
-                          {option.label}
                         </label>
                       </div>
                     ))}
