@@ -1,13 +1,14 @@
 
 
-## Adicionar coluna "Não Elegível" no Kanban
+## Renomear "Qualificado" para "Contactado" no Kanban
 
-### Mudanças
+Alteração puramente visual — trocar o título da coluna no array `columns` de `KanbanBoard.tsx`.
 
-| # | Arquivo | Mudança |
-|---|---------|---------|
-| 1 | `src/components/pipeline/KanbanBoard.tsx` | Adicionar `{ status: "nao_elegivel", title: "Não Elegível", colorClass: "border-t-gray-400" }` após "Qualificado" (linha 19) |
-| 2 | `src/pages/Pipeline.tsx` | Remover o filtro que exclui `nao_elegivel` (linha 35): trocar `.filter(m => m.status !== "nao_elegivel")` por simplesmente `meetings` |
+### Mudança
 
-Posição no enum: `qualificado → nao_elegivel → elegivel`, então a coluna fica entre "Qualificado" e "Elegível".
+**Arquivo:** `src/components/pipeline/KanbanBoard.tsx`
+
+Linha 19: trocar `title: "Qualificado"` por `title: "Contactado"`
+
+Nenhuma alteração no banco de dados, status enum, ou qualquer outro arquivo.
 
