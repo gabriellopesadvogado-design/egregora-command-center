@@ -1,88 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Astra Design System - Clean, Professional, Modern */
+/* Egrégora Migration Design System */
 
 @layer base {
   :root {
-    /* Navy/Slate professional palette */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 98%;
+    --foreground: 0 0% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 15%;
 
-    /* Deep blue primary */
-    --primary: 221 83% 53%;
+    --primary: 213 88% 14%;
     --primary-foreground: 0 0% 100%;
 
-    /* Soft gray secondary */
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 214 30% 93%;
+    --secondary-foreground: 0 0% 15%;
 
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 214 20% 95%;
+    --muted-foreground: 213 15% 46%;
 
-    /* Teal accent */
-    --accent: 173 80% 40%;
+    --accent: 8 100% 64%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Status colors */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 100%;
+    --info: 214 89% 78%;
+    --info-foreground: 213 88% 14%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    --border: 214 25% 89%;
+    --input: 214 25% 89%;
+    --ring: 214 89% 78%;
 
     --radius: 0.5rem;
 
-    /* Sidebar */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-background: 213 88% 14%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 8 100% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 18%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 222 47% 18%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 213 88% 20%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 213 88% 20%;
+    --sidebar-ring: 214 89% 78%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(199 89% 48%));
-    --gradient-accent: linear-gradient(135deg, hsl(173 80% 40%), hsl(142 76% 36%));
+    --gradient-primary: linear-gradient(135deg, hsl(213 88% 14%), hsl(214 89% 78%));
+    --gradient-accent: linear-gradient(135deg, hsl(8 100% 64%), hsl(8 100% 72%));
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 20% 98%;
+    --background: 213 88% 8%;
+    --foreground: 0 0% 98%;
 
-    --card: 222 47% 9%;
-    --card-foreground: 210 20% 98%;
+    --card: 213 88% 11%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 213 88% 11%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 221 83% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 214 89% 78%;
+    --primary-foreground: 213 88% 14%;
 
-    --secondary: 222 47% 14%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 213 50% 16%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 222 47% 14%;
-    --muted-foreground: 215 16% 65%;
+    --muted: 213 50% 16%;
+    --muted-foreground: 214 20% 65%;
 
-    --accent: 173 80% 50%;
+    --accent: 8 100% 68%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62% 50%;
@@ -92,21 +87,21 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 60%;
     --warning-foreground: 0 0% 0%;
-    --info: 199 89% 58%;
+    --info: 214 89% 78%;
     --info-foreground: 0 0% 100%;
 
-    --border: 222 47% 18%;
-    --input: 222 47% 18%;
-    --ring: 221 83% 60%;
+    --border: 213 50% 18%;
+    --input: 213 50% 18%;
+    --ring: 214 89% 78%;
 
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 221 83% 60%;
+    --sidebar-background: 213 88% 6%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 8 100% 68%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 14%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 222 47% 14%;
-    --sidebar-ring: 221 83% 60%;
+    --sidebar-accent: 213 88% 14%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 213 50% 14%;
+    --sidebar-ring: 214 89% 78%;
   }
 }
 
@@ -117,6 +112,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: 'Outfit', sans-serif;
     font-feature-settings: "cv11", "ss01";
   }
 }
@@ -137,7 +133,6 @@
     background-clip: text;
   }
 
-  /* Goal pulse animation for targets near completion */
   @keyframes goal-pulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.01); box-shadow: 0 0 20px hsl(var(--success) / 0.3); }
@@ -147,7 +142,6 @@
     animation: goal-pulse 2s ease-in-out infinite;
   }
 
-  /* Leader shine effect for #1 ranking */
   @keyframes shine {
     from { background-position: 200% center; }
     to { background-position: -200% center; }
@@ -164,28 +158,25 @@
     animation: shine 3s linear infinite;
   }
 
-  /* Annual Target - Golden Highlighted Container */
   .annual-target-container {
-    border: 2px solid hsl(45 93% 47%);
+    border: 2px solid hsl(8 100% 64%);
     background: linear-gradient(
       135deg,
-      hsl(45 93% 47% / 0.1),
-      hsl(38 92% 50% / 0.05)
+      hsl(8 100% 64% / 0.1),
+      hsl(8 100% 64% / 0.05)
     );
-    box-shadow: 0 0 20px hsl(45 93% 47% / 0.15);
+    box-shadow: 0 0 20px hsl(8 100% 64% / 0.15);
   }
 
-  /* Annual Target - Golden Progress Bar */
   .annual-target-bar {
     background: linear-gradient(
       135deg,
-      hsl(45 93% 47%),
-      hsl(38 92% 50%),
-      hsl(45 93% 47%)
+      hsl(8 100% 64%),
+      hsl(8 100% 72%),
+      hsl(8 100% 64%)
     );
   }
 
-  /* Annual Target - Shine animation when goal achieved */
   @keyframes annual-shine {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
@@ -195,31 +186,29 @@
   .annual-shine {
     background: linear-gradient(
       90deg,
-      hsl(45 93% 47%),
-      hsl(50 95% 55%),
-      hsl(45 93% 47%),
-      hsl(38 92% 50%),
-      hsl(45 93% 47%)
+      hsl(8 100% 64%),
+      hsl(8 100% 72%),
+      hsl(8 100% 64%),
+      hsl(8 100% 58%),
+      hsl(8 100% 64%)
     );
     background-size: 200% 100%;
     animation: annual-shine 3s ease-in-out infinite;
   }
 
-  /* Hero Monthly Target Container */
   .hero-monthly-container {
-    border: 2px solid hsl(45 93% 47% / 0.4);
+    border: 2px solid hsl(8 100% 64% / 0.4);
     background: linear-gradient(
       135deg,
-      hsl(45 93% 47% / 0.08),
-      hsl(38 92% 50% / 0.04),
+      hsl(8 100% 64% / 0.08),
+      hsl(8 100% 64% / 0.04),
       transparent
     );
     box-shadow: 
-      0 4px 24px hsl(45 93% 47% / 0.12),
-      inset 0 1px 0 hsl(45 93% 47% / 0.1);
+      0 4px 24px hsl(8 100% 64% / 0.12),
+      inset 0 1px 0 hsl(8 100% 64% / 0.1);
   }
 
-  /* Hero Progress Bar Shimmer */
   @keyframes shimmer {
     from { background-position: 200% 0; }
     to { background-position: -200% 0; }
@@ -228,9 +217,9 @@
   .hero-progress-shimmer {
     background: linear-gradient(
       90deg,
-      hsl(45 93% 47%),
-      hsl(50 95% 60%),
-      hsl(45 93% 47%)
+      hsl(8 100% 64%),
+      hsl(8 100% 72%),
+      hsl(8 100% 64%)
     );
     background-size: 200% 100%;
     animation: shimmer 2.5s linear infinite;
