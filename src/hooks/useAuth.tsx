@@ -1,21 +1,21 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-
-type AppRole = "admin" | "gestor" | "sdr" | "closer" | "analista_processos";
 
 interface Profile {
   id: string;
   nome: string;
-  role: AppRole;
+  email: string;
+  cargo: string;
   ativo: boolean;
+  hubspot_owner_id?: number;
+  avatar_url?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  role: AppRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
@@ -24,57 +24,56 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          setTimeout(async () => {
-            const { data: profileData } = await supabase
-              .from("core_users")
-              .select("*")
-              .eq("id", session.user.id)
-              .single();
-
-            if (profileData) {
-              setProfile({
-                id: profileData.id,
-                nome: profileData.nome,
-                role: profileData.cargo as AppRole,
-                ativo: profileData.ativo ?? true,
-              });
-              setRole(profileData.cargo as AppRole);
-            }
-          }, 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-        
-        setLoading(false);
-      }
-    );
-
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        setLoading(false);
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("core_users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (!error && data) {
+      setProfile(data as Profile);
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     return { error };
   };
 
@@ -83,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
         data: { nome },
       },
     });
@@ -92,10 +90,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, profile, loading, signIn, signUp, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );
