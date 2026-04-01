@@ -24,7 +24,7 @@ interface CreativeAlertsWidgetProps {
 const fmtCur = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 const fmt = (n: number) => new Intl.NumberFormat('pt-BR').format(n);
 
-export function CreativeAlertsWidget({ bestCreatives, worstCreatives, isLoading }: CreativeAlertsWidgetProps) {
+export function CreativeAlertsWidget({ bestCreatives = [], worstCreatives = [], isLoading }: CreativeAlertsWidgetProps) {
   if (isLoading) {
     return (
       <div className="grid gap-6 lg:grid-cols-2">

@@ -36,8 +36,8 @@ const badgeColors = {
   info: 'bg-muted text-muted-foreground hover:bg-muted',
 };
 
-export function AIInsightsCard({ insights: initialInsights }: AIInsightsCardProps) {
-  const [insights, setInsights] = useState<AIInsight[]>(initialInsights);
+export function AIInsightsCard({ insights: initialInsights = [] }: AIInsightsCardProps) {
+  const [insights, setInsights] = useState<AIInsight[]>(initialInsights || []);
   const [isGenerating, setIsGenerating] = useState(false);
   const { connectedAccount } = useMetaConnection();
 

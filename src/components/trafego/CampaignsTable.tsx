@@ -15,7 +15,7 @@ interface CampaignsTableProps {
   campaigns: Campaign[];
 }
 
-export function CampaignsTable({ campaigns }: CampaignsTableProps) {
+export function CampaignsTable({ campaigns = [] }: CampaignsTableProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -48,7 +48,13 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {campaigns.map((campaign) => {
+              {campaigns.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    Nenhuma campanha encontrada. Configure suas contas de anúncios em Configurações.
+                  </TableCell>
+                </TableRow>
+              ) : campaigns.map((campaign) => {
                 const TrendIcon =
                   campaign.trend === 'up'
                     ? TrendingUp

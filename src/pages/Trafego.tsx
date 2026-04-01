@@ -135,7 +135,7 @@ export default function Trafego() {
           {isCampaignLoading ? (
             <div className="h-64 bg-muted rounded animate-pulse" />
           ) : (
-            <CampaignsTable data={campaignData} />
+            <CampaignsTable campaigns={campaignData || []} />
           )}
         </CardContent>
       </Card>
@@ -150,7 +150,7 @@ export default function Trafego() {
             {isAdLoading ? (
               <div className="h-48 bg-muted rounded animate-pulse" />
             ) : (
-              <CreativeAlertsWidget creatives={bestCreatives} type="best" />
+              <CreativeAlertsWidget bestCreatives={bestCreatives || []} worstCreatives={[]} />
             )}
           </CardContent>
         </Card>
@@ -163,19 +163,14 @@ export default function Trafego() {
             {isAdLoading ? (
               <div className="h-48 bg-muted rounded animate-pulse" />
             ) : (
-              <CreativeAlertsWidget creatives={worstCreatives} type="worst" />
+              <CreativeAlertsWidget bestCreatives={[]} worstCreatives={worstCreatives || []} />
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* AI Insights */}
-      <AIInsightsCard
-        kpis={kpis}
-        performanceSummary={performanceSummary}
-        bestCreatives={bestCreatives}
-        worstCreatives={worstCreatives}
-      />
+      <AIInsightsCard insights={[]} />
     </div>
   );
 }
