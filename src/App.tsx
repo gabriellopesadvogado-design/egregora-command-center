@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { StatusTransitionProvider } from "@/hooks/useStatusTransition";
 
 // Layout
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -54,10 +55,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
+      <StatusTransitionProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
           {/* Public */}
           <Route path="/auth" element={<Auth />} />
           
@@ -99,9 +101,10 @@ const App = () => (
             <Route path="notificacoes" element={<Notificacoes />} />
           </Route>
           
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </StatusTransitionProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
