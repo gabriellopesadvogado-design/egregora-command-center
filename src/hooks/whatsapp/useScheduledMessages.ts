@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface ScheduledMessage {
+  id: string;
+  conversationId: string;
+  content: string;
+  scheduledAt: string;
+  status: 'pending' | 'sent' | 'cancelled';
+}
+
 export function useScheduledMessages(conversationId: string | null) {
   const queryClient = useQueryClient();
 
@@ -8,24 +16,26 @@ export function useScheduledMessages(conversationId: string | null) {
     queryKey: ['scheduled_messages', conversationId],
     queryFn: async () => {
       if (!conversationId) return [];
-      // TODO: Implementar tabela de mensagens agendadas
-      return [];
+      return [] as ScheduledMessage[];
     },
     enabled: !!conversationId,
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async (messageId: string) => {
-      // TODO: Cancelar mensagem agendada
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scheduled_messages', conversationId] });
-    },
   });
 
   return {
     scheduledMessages,
     isLoading,
-    cancelMessage: cancelMutation.mutate,
   };
+}
+
+export function useCancelScheduledMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (messageId: string) => {
+      // TODO: Cancelar mensagem agendada
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduled_messages'] });
+    },
+  });
 }

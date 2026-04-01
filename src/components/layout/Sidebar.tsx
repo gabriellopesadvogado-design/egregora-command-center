@@ -24,11 +24,9 @@ import {
   LogOut,
   MessageSquare,
   BarChart3,
-  Database,
 } from "lucide-react";
 
 const menuItems = [
-  // Comercial
   { 
     section: "Comercial",
     items: [
@@ -42,7 +40,6 @@ const menuItems = [
       { name: "Reativação", href: "/reativacao", icon: RefreshCw },
     ]
   },
-  // Operações
   {
     section: "Operações",
     items: [
@@ -52,7 +49,6 @@ const menuItems = [
       { name: "Metas", href: "/targets", icon: Target },
     ]
   },
-  // Tráfego
   {
     section: "Tráfego Pago",
     items: [
@@ -60,21 +56,18 @@ const menuItems = [
       { name: "ROI por Canal", href: "/roi", icon: DollarSign },
     ]
   },
-  // Conversas
   {
     section: "Conversas",
     items: [
       { name: "WhatsApp", href: "/conversas", icon: MessageSquare },
     ]
   },
-  // IA & Reports
   {
     section: "IA & Reports",
     items: [
       { name: "Relatórios IA", href: "/wbr-ai", icon: Sparkles },
     ]
   },
-  // Sistema
   {
     section: "Sistema",
     items: [
@@ -90,28 +83,28 @@ export function Sidebar() {
   const { signOut, profile } = useAuth();
 
   return (
-    <aside className="flex flex-col w-64 border-r bg-card h-screen">
+    <aside className="flex flex-col w-64 bg-brand-primary text-white h-screen">
       {/* Logo */}
       <div className="p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xl">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white font-bold text-xl">
             E
           </div>
           <div>
-            <h1 className="font-bold text-lg">Egrégora</h1>
-            <p className="text-xs text-muted-foreground">Command Center</p>
+            <h1 className="font-bold text-lg text-white">Egrégora</h1>
+            <p className="text-xs text-brand-support">Command Center</p>
           </div>
         </div>
       </div>
 
-      <Separator />
+      <Separator className="bg-white/10" />
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3">
         <div className="py-4 space-y-6">
           {menuItems.map((section) => (
             <div key={section.section}>
-              <h3 className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <h3 className="mb-2 px-3 text-xs font-semibold text-brand-support/70 uppercase tracking-wider">
                 {section.section}
               </h3>
               <div className="space-y-1">
@@ -124,8 +117,8 @@ export function Sidebar() {
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
                         isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? "bg-brand-accent text-white shadow-lg"
+                          : "text-white/70 hover:bg-white/10 hover:text-white"
                       )}
                     >
                       <item.icon className="h-4 w-4" />
@@ -139,23 +132,23 @@ export function Sidebar() {
         </div>
       </ScrollArea>
 
-      <Separator />
+      <Separator className="bg-white/10" />
 
       {/* User & Logout */}
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-accent text-white font-medium">
             {profile?.nome?.[0] || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{profile?.nome || "Usuário"}</p>
-            <p className="text-xs text-muted-foreground truncate">{profile?.cargo || "Cargo"}</p>
+            <p className="text-sm font-medium text-white truncate">{profile?.nome || "Usuário"}</p>
+            <p className="text-xs text-brand-support/70 truncate">{profile?.cargo || "Cargo"}</p>
           </div>
         </div>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="w-full"
+          className="w-full text-white/70 hover:text-white hover:bg-white/10 border border-white/20"
           onClick={signOut}
         >
           <LogOut className="h-4 w-4 mr-2" />
