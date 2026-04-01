@@ -1,1 +1,0 @@
-ALTER TYPE public.plataforma_origem ADD VALUE 'reativacao';
