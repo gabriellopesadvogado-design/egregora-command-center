@@ -54,19 +54,7 @@ Deno.serve(async (req) => {
     // Get conversation details
     const { data: conversation, error: convError } = await supabase
       .from('whatsapp_conversations')
-      .select(`
-        *,
-        whatsapp_contacts!inner (
-          phone_number,
-          name
-        ),
-        whatsapp_instances!inner (
-          id,
-          instance_name,
-          zapi_instance_id,
-          zapi_token
-        )
-      `)
+      .select('*')
       .eq('id', body.conversationId)
       .single();
 
@@ -78,13 +66,57 @@ Deno.serve(async (req) => {
       );
     }
 
-    const instance = (conversation as any).whatsapp_instances;
-    const contact = (conversation as any).whatsapp_contacts;
+    console.log('[send-zapi-message] Conversation found:', conversation.id, 'contact_id:', conversation.contact_id, 'instance_id:', conversation.instance_id);
+
+    // Get contact
+    const { data: contact, error: contactError } = await supabase
+      .from('whatsapp_contacts')
+      .select('*')
+      .eq('id', conversation.contact_id)
+      .single();
+
+    if (contactError || !contact) {
+      console.error('[send-zapi-message] Contact not found:', contactError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Contact not found' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[send-zapi-message] Contact found:', contact.phone_number);
+
+    // Get instance
+    const { data: instance, error: instanceError } = await supabase
+      .from('whatsapp_instances')
+      .select('*')
+      .eq('id', conversation.instance_id)
+      .single();
+
+    if (instanceError || !instance) {
+      console.error('[send-zapi-message] Instance not found:', instanceError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'WhatsApp instance not found' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[send-zapi-message] Instance found:', instance.nome, 'zapi_instance_id:', instance.zapi_instance_id);
 
     if (!instance.zapi_instance_id || !instance.zapi_token) {
       console.error('[send-zapi-message] Z-API credentials not configured');
       return new Response(
         JSON.stringify({ success: false, error: 'Z-API credentials not configured for this instance' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Client-Token é o token da CONTA, diferente do Instance Token
+    const clientToken = instance.zapi_client_token || instance.zapi_token;
+    
+    if (!clientToken) {
+      console.error('[send-zapi-message] Z-API Client-Token not configured');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Z-API Client-Token not configured. Go to Z-API panel > Security > Account Security Token' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -109,7 +141,7 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Token': instance.zapi_token,
+        'Client-Token': clientToken,
       },
       body: JSON.stringify(requestBody),
     });
