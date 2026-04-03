@@ -113,23 +113,41 @@ async function fetchProfilePicture(
   clientToken: string,
   phone: string
 ): Promise<string | null> {
-  try {
-    const response = await fetch(
-      `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/profile-picture?phone=${phone}`,
-      {
-        method: 'GET',
-        headers: { 'Client-Token': clientToken },
-      }
-    );
-    const data = await response.json();
-    if (data.link && data.link !== 'null') {
-      return data.link;
-    }
-    return null;
-  } catch (error) {
-    console.log('[zapi-webhook] Could not fetch profile picture:', error);
-    return null;
+  // Gerar variantes do número (com e sem o 9)
+  const phoneVariants = [phone];
+  
+  // Números brasileiros: tentar com e sem o 9
+  if (phone.startsWith('55') && phone.length === 13) {
+    // Tem 9, tentar sem
+    const withoutNinth = phone.slice(0, 4) + phone.slice(5);
+    phoneVariants.push(withoutNinth);
   }
+  if (phone.startsWith('55') && phone.length === 12) {
+    // Não tem 9, tentar com
+    const withNinth = phone.slice(0, 4) + '9' + phone.slice(4);
+    phoneVariants.push(withNinth);
+  }
+
+  for (const phoneVariant of phoneVariants) {
+    try {
+      const response = await fetch(
+        `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/profile-picture?phone=${phoneVariant}`,
+        {
+          method: 'GET',
+          headers: { 'Client-Token': clientToken },
+        }
+      );
+      const data = await response.json();
+      if (data.link && data.link !== 'null') {
+        console.log(`[zapi-webhook] Found profile picture with phone variant: ${phoneVariant}`);
+        return data.link;
+      }
+    } catch (error) {
+      console.log('[zapi-webhook] Could not fetch profile picture:', error);
+    }
+  }
+  
+  return null;
 }
 
 // Find or create contact

@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-export function useWhatsAppActions(conversationId: string | null) {
+// Hook com conversationId (para ações de conversa)
+export function useWhatsAppActions(conversationId?: string | null) {
   const queryClient = useQueryClient();
 
   const markAsReadMutation = useMutation({
@@ -39,11 +41,39 @@ export function useWhatsAppActions(conversationId: string | null) {
     },
   });
 
+  // Atualizar contato
+  const updateContactMutation = useMutation({
+    mutationFn: async ({ contactId, data }: { contactId: string; data: { name?: string; notes?: string | null } }) => {
+      const { error } = await supabase
+        .from('whatsapp_contacts')
+        .update({
+          ...data,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', contactId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp_contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations_list'] });
+      if (conversationId) {
+        queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      }
+      toast.success('Contato atualizado com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao atualizar contato: ' + error.message);
+    },
+  });
+
   return {
     markAsRead: markAsReadMutation.mutate,
     closeConversation: closeConversationMutation.mutate,
     toggleStatus: toggleStatusMutation.mutate,
+    updateContact: updateContactMutation.mutate,
     isClosing: closeConversationMutation.isPending,
     isTogglingStatus: toggleStatusMutation.isPending,
+    isUpdatingContact: updateContactMutation.isPending,
   };
 }
