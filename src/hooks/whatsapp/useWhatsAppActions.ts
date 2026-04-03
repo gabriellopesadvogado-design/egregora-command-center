@@ -55,18 +55,18 @@ export function useWhatsAppActions(conversationId?: string | null) {
       if (error) throw error;
       console.log('[updateContact] Contact updated successfully');
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('[updateContact] Invalidating queries, conversationId:', conversationId);
       // Invalidar todas as queries relacionadas
-      queryClient.invalidateQueries({ queryKey: ['whatsapp_contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] });
-      queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations_list'] });
+      await queryClient.invalidateQueries({ queryKey: ['whatsapp_contacts'] });
+      await queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations'] });
+      await queryClient.invalidateQueries({ queryKey: ['whatsapp_conversations_list'] });
       // Invalidar a query específica da conversa
       if (conversationId) {
         console.log('[updateContact] Invalidating conversation query:', conversationId);
-        queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
-        // Forçar refetch imediato
-        queryClient.refetchQueries({ queryKey: ['conversation', conversationId] });
+        // Remover do cache e forçar refetch
+        await queryClient.resetQueries({ queryKey: ['conversation', conversationId] });
+        await queryClient.refetchQueries({ queryKey: ['conversation', conversationId], type: 'active' });
       }
       toast.success('Contato atualizado com sucesso!');
     },
