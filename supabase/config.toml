@@ -1,1 +1,8 @@
+# Supabase project configuration
 project_id = "zxwkjogjbyywufertkor"
+
+[functions.zapi-webhook]
+verify_jwt = false
+
+[functions.evolution-webhook]
+verify_jwt = false

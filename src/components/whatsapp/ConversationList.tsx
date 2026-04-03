@@ -4,70 +4,88 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Filter, Bot, User, Clock } from "lucide-react";
+import { Search, Bot, User, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Conversation {
-  id: string;
-  contact: {
-    name: string;
-    phone: string;
-    avatar?: string;
-  };
-  lastMessage: string;
-  lastMessageAt: string;
-  unreadCount: number;
-  status: "nina" | "human" | "paused";
-  assignedTo?: string;
-}
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface ConversationListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-// Mock data - será substituído por dados reais do Supabase
-const mockConversations: Conversation[] = [
-  {
-    id: "1",
-    contact: { name: "João Silva", phone: "+55 11 99999-1234" },
-    lastMessage: "Olá, gostaria de saber mais sobre naturalização",
-    lastMessageAt: "10:30",
-    unreadCount: 3,
-    status: "nina",
-  },
-  {
-    id: "2",
-    contact: { name: "Maria Santos", phone: "+55 21 98888-5678" },
-    lastMessage: "Já tenho os documentos prontos",
-    lastMessageAt: "09:45",
-    unreadCount: 0,
-    status: "human",
-    assignedTo: "Victor",
-  },
-  {
-    id: "3",
-    contact: { name: "Pedro Oliveira", phone: "+55 31 97777-9012" },
-    lastMessage: "Pode me explicar os requisitos?",
-    lastMessageAt: "Ontem",
-    unreadCount: 1,
-    status: "paused",
-  },
-];
-
 export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<"all" | "nina" | "human" | "paused">("all");
 
-  const filteredConversations = mockConversations.filter((conv) => {
+  // Buscar conversas reais do Supabase
+  const { data: conversations = [], isLoading } = useQuery({
+    queryKey: ['whatsapp_conversations_list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('whatsapp_conversations')
+        .select(`
+          id,
+          status,
+          is_active,
+          last_message_at,
+          contact:whatsapp_contacts (
+            id,
+            name,
+            phone_number,
+            profile_picture_url
+          )
+        `)
+        .eq('is_active', true)
+        .order('last_message_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching conversations:', error);
+        throw error;
+      }
+
+      // Buscar última mensagem de cada conversa
+      const conversationsWithMessages = await Promise.all(
+        (data || []).map(async (conv) => {
+          const { data: messages } = await supabase
+            .from('whatsapp_messages')
+            .select('content, sent_at')
+            .eq('conversation_id', conv.id)
+            .order('sent_at', { ascending: false })
+            .limit(1);
+
+          const { count } = await supabase
+            .from('whatsapp_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', conv.id)
+            .eq('message_from', 'user');
+
+          return {
+            ...conv,
+            lastMessage: messages?.[0]?.content || 'Sem mensagens',
+            lastMessageAt: conv.last_message_at,
+            unreadCount: 0, // TODO: implementar contador de não lidas
+          };
+        })
+      );
+
+      return conversationsWithMessages;
+    },
+    refetchInterval: 5000, // Atualizar a cada 5 segundos
+  });
+
+  const filteredConversations = conversations.filter((conv: any) => {
+    const contact = conv.contact;
     const matchesSearch =
-      conv.contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conv.contact.phone.includes(searchTerm);
+      (contact?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (contact?.phone_number || '').includes(searchTerm);
     const matchesFilter = filter === "all" || conv.status === filter;
     return matchesSearch && matchesFilter;
   });
 
-  const getStatusIcon = (status: Conversation["status"]) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case "nina":
         return <Bot className="h-3 w-3 text-blue-500" />;
@@ -75,10 +93,12 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
         return <User className="h-3 w-3 text-green-500" />;
       case "paused":
         return <Clock className="h-3 w-3 text-yellow-500" />;
+      default:
+        return <Bot className="h-3 w-3 text-blue-500" />;
     }
   };
 
-  const getStatusLabel = (status: Conversation["status"]) => {
+  const getStatusLabel = (status: string) => {
     switch (status) {
       case "nina":
         return "IA";
@@ -86,8 +106,30 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
         return "Humano";
       case "paused":
         return "Pausado";
+      default:
+        return "IA";
     }
   };
+
+  const formatTime = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      return formatDistanceToNow(new Date(dateString), { 
+        addSuffix: false, 
+        locale: ptBR 
+      });
+    } catch {
+      return '';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -122,50 +164,64 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
       {/* Conversation List */}
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {filteredConversations.map((conv) => (
-            <button
-              key={conv.id}
-              onClick={() => onSelect(conv.id)}
-              className={cn(
-                "w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors",
-                selectedId === conv.id
-                  ? "bg-primary/10"
-                  : "hover:bg-muted/50"
-              )}
-            >
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={conv.contact.avatar} />
-                <AvatarFallback>
-                  {conv.contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
+          {filteredConversations.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              <p>Nenhuma conversa encontrada</p>
+            </div>
+          ) : (
+            filteredConversations.map((conv: any) => {
+              const contact = conv.contact;
+              const contactName = contact?.name || contact?.phone_number || 'Desconhecido';
+              const initials = contactName
+                .split(" ")
+                .map((n: string) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium truncate">{conv.contact.name}</span>
-                  <span className="text-xs text-muted-foreground">{conv.lastMessageAt}</span>
-                </div>
-                <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs px-1.5 py-0">
-                    {getStatusIcon(conv.status)}
-                    <span className="ml-1">{getStatusLabel(conv.status)}</span>
-                  </Badge>
-                  {conv.assignedTo && (
-                    <span className="text-xs text-muted-foreground">
-                      → {conv.assignedTo}
-                    </span>
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => onSelect(conv.id)}
+                  className={cn(
+                    "w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors",
+                    selectedId === conv.id
+                      ? "bg-primary/10"
+                      : "hover:bg-muted/50"
                   )}
-                </div>
-              </div>
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={contact?.profile_picture_url} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
 
-              {conv.unreadCount > 0 && (
-                <Badge className="bg-primary text-primary-foreground">
-                  {conv.unreadCount}
-                </Badge>
-              )}
-            </button>
-          ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium truncate">{contactName}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTime(conv.lastMessageAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {conv.lastMessage}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0">
+                        {getStatusIcon(conv.status)}
+                        <span className="ml-1">{getStatusLabel(conv.status)}</span>
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {conv.unreadCount > 0 && (
+                    <Badge className="bg-primary text-primary-foreground">
+                      {conv.unreadCount}
+                    </Badge>
+                  )}
+                </button>
+              );
+            })
+          )}
         </div>
       </ScrollArea>
     </div>

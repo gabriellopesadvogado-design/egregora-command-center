@@ -134,7 +134,6 @@ async function findOrCreateContact(
     const { data: existingContact } = await supabase
       .from('whatsapp_contacts')
       .select('id, name, phone_number, profile_picture_url')
-      .eq('instance_id', instanceId)
       .in('phone_number', phoneVariants)
       .maybeSingle();
 
@@ -179,10 +178,8 @@ async function findOrCreateContact(
     const { data: newContact, error } = await supabase
       .from('whatsapp_contacts')
       .insert({
-        instance_id: instanceId,
         phone_number: phoneNumber,
         name: contactName,
-        is_group: isGroup,
         profile_picture_url: profilePictureUrl || null,
       })
       .select('id')
@@ -276,7 +273,7 @@ async function findOrCreateConversation(
       .insert({
         instance_id: instanceId,
         contact_id: contactId,
-        status: 'active',
+        status: 'nina',
       })
       .select('id')
       .single();
@@ -351,11 +348,15 @@ async function processMessage(payload: ZAPIWebhookPayload, instanceId: string, s
     console.log('[zapi-webhook] Processing message:', messageId, 'from:', phone);
 
     // Get instance data
-    const { data: instanceData } = await supabase
+    const { data: instanceData, error: instanceError } = await supabase
       .from('whatsapp_instances')
-      .select('id, instance_name, status')
+      .select('id, nome, is_connected, is_active')
       .eq('id', instanceId)
       .single();
+    
+    if (instanceError) {
+      console.error('[zapi-webhook] Error fetching instance:', instanceError);
+    }
 
     if (!instanceData) {
       console.error('[zapi-webhook] Instance not found');
@@ -363,10 +364,10 @@ async function processMessage(payload: ZAPIWebhookPayload, instanceId: string, s
     }
 
     // Update status to connected
-    if (instanceData.status !== 'connected') {
+    if (!instanceData.is_connected) {
       await supabase
         .from('whatsapp_instances')
-        .update({ status: 'connected', updated_at: new Date().toISOString() })
+        .update({ is_connected: true, updated_at: new Date().toISOString() })
         .eq('id', instanceId);
     }
 
@@ -401,16 +402,15 @@ async function processMessage(payload: ZAPIWebhookPayload, instanceId: string, s
       .from('whatsapp_messages')
       .insert({
         conversation_id: conversationId,
-        remote_jid: phone,
-        message_id: messageId,
+        contact_id: contactId,
+        whatsapp_message_id: messageId,
         content,
         message_type: messageType,
         media_url: mediaUrl,
-        media_mimetype: mediaMimetype,
-        is_from_me: isFromMe,
+        media_mime_type: mediaMimetype,
+        message_from: isFromMe ? 'human' : 'user',
         status: 'sent',
-        quoted_message_id: quotedMessageId,
-        timestamp: new Date().toISOString(),
+        sent_at: new Date().toISOString(),
       });
 
     if (messageError) {
@@ -426,7 +426,7 @@ async function processMessage(payload: ZAPIWebhookPayload, instanceId: string, s
       const { data: insertedMessage } = await supabase
         .from('whatsapp_messages')
         .select('id')
-        .eq('message_id', messageId)
+        .eq('whatsapp_message_id', messageId)
         .eq('conversation_id', conversationId)
         .single();
 
