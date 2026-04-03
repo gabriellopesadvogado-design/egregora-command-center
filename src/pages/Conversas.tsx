@@ -4,16 +4,28 @@ import { ChatArea } from "@/components/whatsapp/ChatArea";
 import { ConversationDetailsSidebar } from "@/components/whatsapp/details/ConversationDetailsSidebar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Settings, Users } from "lucide-react";
+import { MessageSquare, Settings, Users, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useWhatsAppInstances } from "@/hooks/whatsapp";
 
 export default function Conversas() {
   const navigate = useNavigate();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [isConnected, setIsConnected] = useState(false); // TODO: Check Evolution API connection
+  const { instances, isLoading } = useWhatsAppInstances();
+  
+  const hasActiveInstance = instances.length > 0;
 
-  if (!isConnected) {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!hasActiveInstance) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <MessageSquare className="h-12 w-12 text-muted-foreground" />
