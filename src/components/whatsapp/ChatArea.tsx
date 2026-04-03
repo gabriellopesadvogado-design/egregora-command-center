@@ -23,10 +23,11 @@ export const ChatArea = ({ conversationId }: ChatAreaProps) => {
   const queryClient = useQueryClient();
 
   // Fetch conversation details including contact
-  const { data: conversation } = useQuery({
+  const { data: conversation, refetch: refetchConversation } = useQuery({
     queryKey: ['conversation', conversationId],
     queryFn: async () => {
       if (!conversationId) return null;
+      console.log('[ChatArea] Fetching conversation:', conversationId);
       
       const { data, error } = await supabase
         .from('whatsapp_conversations')
@@ -38,15 +39,21 @@ export const ChatArea = ({ conversationId }: ChatAreaProps) => {
         .single();
 
       if (error) throw error;
+      console.log('[ChatArea] Conversation fetched, contact:', data?.contact?.name);
       return data;
     },
     enabled: !!conversationId,
+    staleTime: 0, // Sempre considerar dados como stale
+    refetchOnMount: true,
   });
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (!conversationId) return;
-    queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
-    queryClient.invalidateQueries({ queryKey: ['whatsapp', 'conversations'] });
+    console.log('[ChatArea] handleRefresh called');
+    await queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp', 'conversations'] });
+    // Forçar refetch
+    refetchConversation();
   };
 
   const handleSendText = (content: string, quotedMessageId?: string) => {
