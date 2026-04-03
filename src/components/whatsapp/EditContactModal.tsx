@@ -57,10 +57,12 @@ export function EditContactModal({
   }, [open, contactName, contactNotes, reset]);
 
   const onSubmit = (data: ContactFormData) => {
+    console.log('[EditContactModal] Submitting:', { contactId, conversationId, data });
     updateContact(
       { contactId, data: { name: data.name, notes: data.notes || null } },
       {
         onSuccess: () => {
+          console.log('[EditContactModal] Success, calling onSuccess');
           onOpenChange(false);
           onSuccess?.();
         },
