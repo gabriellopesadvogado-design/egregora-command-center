@@ -26,29 +26,33 @@ type TimelineItem =
   | { type: 'transfer'; data: InstanceTransfer; timestamp: Date }
   | { type: 'mention'; data: InternalMention; timestamp: Date };
 
-export const MessagesContainer = ({ messages, isLoading, conversationId, onReplyMessage }: MessagesContainerProps) => {
+export const MessagesContainer = ({ messages = [], isLoading, conversationId, onReplyMessage }: MessagesContainerProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
-  const prevMessagesLengthRef = useRef(messages.length);
+  const prevMessagesLengthRef = useRef(messages?.length || 0);
   const { reactionsByMessage } = useMessageReactions(conversationId);
   const { transfers } = useInstanceTransfer(conversationId);
   const { mentions } = useConversationMentions(conversationId);
 
   // Combine all timeline items and sort by timestamp
   const timelineItems = useMemo(() => {
+    const safeMessages = messages || [];
+    const safeTransfers = transfers || [];
+    const safeMentions = mentions || [];
+    
     const items: TimelineItem[] = [
-      ...messages.map(m => ({ 
+      ...safeMessages.map(m => ({ 
         type: 'message' as const, 
         data: m, 
         timestamp: new Date(m.timestamp) 
       })),
-      ...transfers.map(t => ({ 
+      ...safeTransfers.map(t => ({ 
         type: 'transfer' as const, 
         data: t, 
         timestamp: new Date(t.created_at) 
       })),
-      ...mentions.map(m => ({ 
+      ...safeMentions.map(m => ({ 
         type: 'mention' as const, 
         data: m, 
         timestamp: new Date(m.created_at) 
