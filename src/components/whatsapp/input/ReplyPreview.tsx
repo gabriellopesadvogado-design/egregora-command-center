@@ -11,7 +11,9 @@ interface ReplyPreviewProps {
 
 export const ReplyPreview = ({ message, onCancel }: ReplyPreviewProps) => {
   const getSenderName = () => {
-    return message.is_from_me ? 'Você' : 'Contato';
+    // Compatibilidade: suporta tanto is_from_me quanto message_from
+    const isFromMe = (message as any).is_from_me ?? (message as any).message_from === 'human';
+    return isFromMe ? 'Você' : 'Contato';
   };
 
   const getPreviewContent = () => {

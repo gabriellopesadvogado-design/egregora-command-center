@@ -69,6 +69,9 @@ export const MessageInputContainer = ({
   const handleSchedule = (scheduledAt: Date) => {
     if (!message.trim() || !contactId || !instanceId) return;
     
+    // Compatibilidade: suporta tanto message_id quanto whatsapp_message_id
+    const quotedId = (replyingTo as any)?.whatsapp_message_id || (replyingTo as any)?.message_id;
+    
     scheduleMutation.mutate({
       conversationId,
       contactId,
@@ -76,7 +79,7 @@ export const MessageInputContainer = ({
       scheduledAt,
       content: message.trim(),
       messageType: 'text',
-      quotedMessageId: replyingTo?.message_id || undefined,
+      quotedMessageId: quotedId || undefined,
     });
     
     setMessage("");
@@ -147,7 +150,9 @@ export const MessageInputContainer = ({
     }
     
     // Regular message - send to WhatsApp
-    onSendText(content, replyingTo?.message_id);
+    // Compatibilidade: suporta tanto message_id quanto whatsapp_message_id
+    const quotedId = (replyingTo as any)?.whatsapp_message_id || (replyingTo as any)?.message_id;
+    onSendText(content, quotedId);
   };
 
   const handleSend = async () => {

@@ -10,11 +10,22 @@ export const QuotedMessagePreview = ({ messageId }: QuotedMessagePreviewProps) =
   const { data: quotedMessage } = useQuery({
     queryKey: ['message', messageId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Tenta buscar primeiro por whatsapp_message_id, depois por id
+      let { data, error } = await supabase
         .from('whatsapp_messages')
         .select('*')
-        .eq('message_id', messageId)
-        .single();
+        .eq('whatsapp_message_id', messageId)
+        .maybeSingle();
+
+      if (!data) {
+        const result = await supabase
+          .from('whatsapp_messages')
+          .select('*')
+          .eq('id', messageId)
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
       return data;
@@ -23,17 +34,20 @@ export const QuotedMessagePreview = ({ messageId }: QuotedMessagePreviewProps) =
 
   if (!quotedMessage) return null;
 
+  // Compatibilidade: suporta tanto is_from_me quanto message_from
+  const isFromMe = (quotedMessage as any).is_from_me ?? (quotedMessage as any).message_from === 'human';
+
   return (
     <div
       className={cn(
         'border-l-4 pl-2 py-1 mb-2 text-xs opacity-80',
-        quotedMessage.is_from_me
+        isFromMe
           ? 'border-primary-foreground/50'
           : 'border-primary/50'
       )}
     >
       <p className="font-semibold">
-        {quotedMessage.is_from_me ? 'Você' : 'Contato'}
+        {isFromMe ? 'Você' : 'Contato'}
       </p>
       <p className="line-clamp-2">{quotedMessage.content}</p>
     </div>

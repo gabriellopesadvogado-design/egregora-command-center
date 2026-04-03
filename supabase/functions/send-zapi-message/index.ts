@@ -134,24 +134,26 @@ Deno.serve(async (req) => {
       ? (body.content || '') 
       : (body.content || `Sent ${body.messageType}`);
 
+    // Buscar contact_id da conversa
+    const { data: convWithContact } = await supabase
+      .from('whatsapp_conversations')
+      .select('contact_id')
+      .eq('id', body.conversationId)
+      .single();
+
     const { data: savedMessage, error: saveError } = await supabase
       .from('whatsapp_messages')
       .insert({
         conversation_id: body.conversationId,
-        message_id: messageId,
-        remote_jid: contact.phone_number,
+        contact_id: convWithContact?.contact_id,
+        whatsapp_message_id: messageId,
         content: messageContent,
         message_type: body.messageType,
         media_url: body.mediaUrl || null,
-        media_mimetype: body.mediaMimetype || null,
+        media_mime_type: body.mediaMimetype || null,
         status: 'sent',
-        is_from_me: true,
-        timestamp: new Date().toISOString(),
-        quoted_message_id: body.quotedMessageId || null,
-        metadata: {
-          fileName: body.fileName,
-          zapi_response: zapiData,
-        },
+        message_from: 'human',
+        sent_at: new Date().toISOString(),
       })
       .select()
       .single();
