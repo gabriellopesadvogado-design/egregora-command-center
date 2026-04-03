@@ -115,19 +115,4 @@ export function useWhatsAppContact(contactId: string | null) {
   return { contact, isLoading };
 }
 
-// Hook para instâncias
-export function useWhatsAppInstances() {
-  const { data: instances = [], isLoading } = useQuery({
-    queryKey: ['whatsapp_instances'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('whatsapp_instances')
-        .select('*')
-        .eq('is_active', true);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  return { instances, isLoading };
-}
+// Hook useWhatsAppInstances movido para ./useWhatsAppInstances.ts
