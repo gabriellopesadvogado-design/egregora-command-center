@@ -23,3 +23,4 @@ export * from './useScheduleMessage';
 export * from './useMessageEditHistory';
 export * from './useSmartReply';
 export * from './useWhatsAppComposer';
+export * from './useWhatsAppSendMessage';

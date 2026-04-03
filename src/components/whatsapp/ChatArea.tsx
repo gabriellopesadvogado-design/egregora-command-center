@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWhatsAppMessages, useWhatsAppSend, useWhatsAppSentiment } from "@/hooks/whatsapp";
+import { useWhatsAppMessages, useWhatsAppSendMessage, useWhatsAppSentiment } from "@/hooks/whatsapp";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatHeader } from "./ChatHeader";
@@ -19,7 +19,7 @@ export const ChatArea = ({ conversationId }: ChatAreaProps) => {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const { messages, isLoading: messagesLoading } = useWhatsAppMessages(conversationId);
   const { sentiment, isAnalyzing, analyze } = useWhatsAppSentiment(conversationId);
-  const sendMutation = useWhatsAppSend();
+  const sendMutation = useWhatsAppSendMessage();
   const queryClient = useQueryClient();
 
   // Fetch conversation details including contact
