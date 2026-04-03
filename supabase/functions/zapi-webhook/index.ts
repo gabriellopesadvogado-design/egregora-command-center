@@ -106,6 +106,32 @@ function getMediaMimetype(payload: ZAPIWebhookPayload, type: string): string | n
   return null;
 }
 
+// Buscar foto de perfil via API da Z-API
+async function fetchProfilePicture(
+  instanceId: string,
+  instanceToken: string,
+  clientToken: string,
+  phone: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/profile-picture?phone=${phone}`,
+      {
+        method: 'GET',
+        headers: { 'Client-Token': clientToken },
+      }
+    );
+    const data = await response.json();
+    if (data.link && data.link !== 'null') {
+      return data.link;
+    }
+    return null;
+  } catch (error) {
+    console.log('[zapi-webhook] Could not fetch profile picture:', error);
+    return null;
+  }
+}
+
 // Find or create contact
 async function findOrCreateContact(
   supabase: any,
@@ -114,7 +140,10 @@ async function findOrCreateContact(
   name: string,
   isGroup: boolean,
   isFromMe: boolean,
-  profilePictureUrl?: string
+  profilePictureUrl?: string,
+  zapiInstanceId?: string,
+  zapiToken?: string,
+  zapiClientToken?: string
 ): Promise<string | null> {
   try {
     // Gerar variantes do número para números brasileiros
@@ -175,12 +204,22 @@ async function findOrCreateContact(
     // Create new contact
     const contactName = isFromMe ? phoneNumber : (name || phoneNumber);
     
+    // Se não tem foto e temos credenciais da Z-API, tenta buscar
+    let photoUrl = profilePictureUrl || null;
+    if (!photoUrl && zapiInstanceId && zapiToken && zapiClientToken && !isFromMe) {
+      console.log('[zapi-webhook] Fetching profile picture for new contact:', phoneNumber);
+      photoUrl = await fetchProfilePicture(zapiInstanceId, zapiToken, zapiClientToken, phoneNumber);
+      if (photoUrl) {
+        console.log('[zapi-webhook] Profile picture found:', photoUrl.substring(0, 50) + '...');
+      }
+    }
+    
     const { data: newContact, error } = await supabase
       .from('whatsapp_contacts')
       .insert({
         phone_number: phoneNumber,
         name: contactName,
-        profile_picture_url: profilePictureUrl || null,
+        profile_picture_url: photoUrl,
       })
       .select('id')
       .single();
@@ -350,7 +389,7 @@ async function processMessage(payload: ZAPIWebhookPayload, instanceId: string, s
     // Get instance data
     const { data: instanceData, error: instanceError } = await supabase
       .from('whatsapp_instances')
-      .select('id, nome, is_connected, is_active')
+      .select('id, nome, is_connected, is_active, zapi_instance_id, zapi_token, zapi_client_token')
       .eq('id', instanceId)
       .single();
     
@@ -379,7 +418,10 @@ async function processMessage(payload: ZAPIWebhookPayload, instanceId: string, s
       payload.senderName || phone,
       isGroup,
       isFromMe,
-      payload.senderPhoto
+      payload.senderPhoto,
+      instanceData.zapi_instance_id,
+      instanceData.zapi_token,
+      instanceData.zapi_client_token
     );
 
     if (!contactId) return;
