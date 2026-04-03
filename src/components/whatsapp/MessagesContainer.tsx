@@ -160,11 +160,12 @@ export const MessagesContainer = ({ messages = [], isLoading, conversationId, on
               <div className="space-y-2">
                 {group.items.map((item) => {
                   if (item.type === 'message') {
+                    const messageId = item.data.whatsapp_message_id || item.data.id;
                     return (
                       <MessageBubble 
                         key={item.data.id} 
                         message={item.data}
-                        reactions={reactionsByMessage[item.data.message_id]}
+                        reactions={reactionsByMessage?.[messageId] || []}
                         onReply={onReplyMessage}
                       />
                     );
