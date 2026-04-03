@@ -95,7 +95,7 @@ export const ChatArea = ({ conversationId }: ChatAreaProps) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-screen">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       <ChatHeader
         contact={conversation?.contact}
         sentiment={sentiment}

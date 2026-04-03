@@ -92,10 +92,18 @@ Deno.serve(async (req) => {
       .eq('id', conversation.instance_id)
       .single();
 
-    if (instanceError || !instance) {
-      console.error('[send-zapi-message] Instance not found:', instanceError);
+    if (instanceError) {
+      console.error('[send-zapi-message] Instance query error:', instanceError);
       return new Response(
-        JSON.stringify({ success: false, error: 'WhatsApp instance not found' }),
+        JSON.stringify({ success: false, error: 'Instance query error: ' + instanceError.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!instance) {
+      console.error('[send-zapi-message] Instance not found for id:', conversation.instance_id);
+      return new Response(
+        JSON.stringify({ success: false, error: 'WhatsApp instance not found for id: ' + conversation.instance_id }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

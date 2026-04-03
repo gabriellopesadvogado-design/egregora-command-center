@@ -256,7 +256,7 @@ export const MessageInputContainer = ({
   }
 
   return (
-    <div className="border-t border-border bg-card">
+    <div className="border-t border-border bg-card flex-shrink-0">
       {replyingTo && onCancelReply && (
         <ReplyPreview message={replyingTo} onCancel={onCancelReply} />
       )}
@@ -269,8 +269,8 @@ export const MessageInputContainer = ({
         onRefresh={refresh}
       />
       
-      <div className="p-4">
-        <div className="relative flex gap-2 items-end">
+      <div className="p-4 pb-6">
+        <div className="relative">
           {showMacroSuggestions && (
             <MacroSuggestions
               macros={filteredMacros}
@@ -286,69 +286,80 @@ export const MessageInputContainer = ({
               onSelect={handleAgentSelect}
             />
           )}
-        
-        <EmojiPickerButton onEmojiSelect={handleEmojiSelect} disabled={disabled} />
-        
-        <MediaUploadButton 
-          conversationId={conversationId}
-          onSendMedia={onSendMedia}
-          disabled={disabled}
-        />
-        
-        <AIComposerButton
-          message={message}
-          onComposed={(newMessage) => setMessage(newMessage)}
-          disabled={disabled}
-        />
-        
-        <Textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Digite uma mensagem..."
-          className="min-h-[44px] max-h-32 resize-none"
-          disabled={disabled}
-        />
-        
-        {message.trim() ? (
-          <>
-            {contactId && instanceId && (
-              <ScheduleMessagePopover
-                disabled={disabled || scheduleMutation.isPending}
-                onSchedule={handleSchedule}
-                trigger={
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    disabled={disabled || scheduleMutation.isPending}
-                    title="Agendar envio"
-                  >
-                    <Clock className="w-4 h-4" />
-                  </Button>
-                }
-              />
-            )}
-            <Button
-              onClick={handleSend}
-              size="icon"
-              disabled={disabled}
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </>
-        ) : (
-          <Button
-            onClick={() => setIsRecording(true)}
-            size="icon"
-            variant="outline"
-            disabled={disabled}
-          >
-            <Mic className="w-4 h-4" />
-          </Button>
-        )}
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
+        
+        <div className="flex gap-2 items-end">
+          {/* Botões à esquerda */}
+          <div className="flex gap-1 flex-shrink-0">
+            <EmojiPickerButton onEmojiSelect={handleEmojiSelect} disabled={disabled} />
+            
+            <MediaUploadButton 
+              conversationId={conversationId}
+              onSendMedia={onSendMedia}
+              disabled={disabled}
+            />
+            
+            <AIComposerButton
+              message={message}
+              onComposed={(newMessage) => setMessage(newMessage)}
+              disabled={disabled}
+            />
+          </div>
+          
+          {/* Campo de texto */}
+          <Textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Digite uma mensagem..."
+            className="min-h-[44px] max-h-32 resize-none flex-1"
+            disabled={disabled}
+          />
+          
+          {/* Botões à direita */}
+          <div className="flex gap-1 flex-shrink-0">
+            {message.trim() ? (
+              <>
+                {contactId && instanceId && (
+                  <ScheduleMessagePopover
+                    disabled={disabled || scheduleMutation.isPending}
+                    onSchedule={handleSchedule}
+                    trigger={
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        disabled={disabled || scheduleMutation.isPending}
+                        title="Agendar envio"
+                      >
+                        <Clock className="w-4 h-4" />
+                      </Button>
+                    }
+                  />
+                )}
+                <Button
+                  onClick={handleSend}
+                  size="icon"
+                  disabled={disabled}
+                  title="Enviar mensagem"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={() => setIsRecording(true)}
+                size="icon"
+                variant="outline"
+                title="Gravar áudio"
+                disabled={disabled}
+              >
+                <Mic className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
           Enter para enviar, Shift+Enter para nova linha
         </p>
       </div>

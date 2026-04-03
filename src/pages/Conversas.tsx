@@ -48,9 +48,9 @@ export default function Conversas() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-4">
+    <div className="flex h-[calc(100vh-5rem)] gap-4">
       {/* Lista de Conversas */}
-      <Card className="w-80 flex-shrink-0 overflow-hidden">
+      <Card className="w-80 flex-shrink-0 overflow-hidden flex flex-col">
         <ConversationList
           selectedId={selectedConversation}
           onSelect={setSelectedConversation}
@@ -58,7 +58,7 @@ export default function Conversas() {
       </Card>
 
       {/* Área de Chat */}
-      <Card className="flex-1 overflow-hidden">
+      <Card className="flex-1 overflow-hidden flex flex-col">
         {selectedConversation ? (
           <ChatArea
             conversationId={selectedConversation}
