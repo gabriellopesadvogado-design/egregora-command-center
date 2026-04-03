@@ -32,29 +32,41 @@ export const MediaPreview = ({ file, onSend, onClose }: MediaPreviewProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
+  // Converter arquivo para Base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSend = async () => {
     setIsUploading(true);
     
     try {
+      // Converter para Base64 (mais confiável com Z-API)
+      const base64Data = await fileToBase64(file);
+      const messageType = getMessageType(file.type);
+
+      // Também fazer upload para Supabase (para histórico)
       const fileName = `${Date.now()}-${sanitizeFileName(file.name)}`;
-      const { error: uploadError } = await supabase.storage
+      await supabase.storage
         .from('whatsapp-media')
         .upload(fileName, file, {
           contentType: file.type,
-        });
-
-      if (uploadError) throw uploadError;
+        }).catch(() => {}); // Ignorar erro de upload, não é crítico
 
       const { data: { publicUrl } } = supabase.storage
         .from('whatsapp-media')
         .getPublicUrl(fileName);
 
-      const messageType = getMessageType(file.type);
-
       onSend({
         messageType,
         content: caption || undefined,
-        mediaUrl: publicUrl,
+        mediaBase64: base64Data,
+        mediaUrl: publicUrl, // Guardar URL para histórico
         mediaMimetype: file.type,
         fileName: file.name,
       });
@@ -64,7 +76,7 @@ export const MediaPreview = ({ file, onSend, onClose }: MediaPreviewProps) => {
       console.error('Upload error:', error);
       toast({
         title: "Erro ao enviar arquivo",
-        description: "Não foi possível fazer upload do arquivo. Tente novamente.",
+        description: "Não foi possível processar o arquivo. Tente novamente.",
         variant: "destructive",
       });
     } finally {
