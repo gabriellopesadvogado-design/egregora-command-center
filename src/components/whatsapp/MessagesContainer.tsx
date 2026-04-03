@@ -42,23 +42,31 @@ export const MessagesContainer = ({ messages = [], isLoading, conversationId, on
     const safeMentions = mentions || [];
     
     const items: TimelineItem[] = [
-      ...safeMessages.map(m => ({ 
-        type: 'message' as const, 
-        data: m, 
-        timestamp: new Date(m.timestamp) 
-      })),
-      ...safeTransfers.map(t => ({ 
-        type: 'transfer' as const, 
-        data: t, 
-        timestamp: new Date(t.created_at) 
-      })),
-      ...safeMentions.map(m => ({ 
-        type: 'mention' as const, 
-        data: m, 
-        timestamp: new Date(m.created_at) 
-      })),
+      ...safeMessages
+        .filter(m => m.sent_at) // Filtrar mensagens sem data
+        .map(m => ({ 
+          type: 'message' as const, 
+          data: m, 
+          timestamp: new Date(m.sent_at) 
+        })),
+      ...safeTransfers
+        .filter(t => t.created_at)
+        .map(t => ({ 
+          type: 'transfer' as const, 
+          data: t, 
+          timestamp: new Date(t.created_at) 
+        })),
+      ...safeMentions
+        .filter(m => m.created_at)
+        .map(m => ({ 
+          type: 'mention' as const, 
+          data: m, 
+          timestamp: new Date(m.created_at) 
+        })),
     ];
-    return items.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return items
+      .filter(item => !isNaN(item.timestamp.getTime()))
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }, [messages, transfers, mentions]);
 
   const handleScroll = () => {
@@ -104,12 +112,21 @@ export const MessagesContainer = ({ messages = [], isLoading, conversationId, on
     const groups: { [key: string]: TimelineItem[] } = {};
     
     timelineItems.forEach(item => {
-      const dateKey = format(item.timestamp, 'yyyy-MM-dd');
-      
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
+      // Validar se timestamp é uma data válida
+      if (!item.timestamp || isNaN(item.timestamp.getTime())) {
+        return; // Pular itens com data inválida
       }
-      groups[dateKey].push(item);
+      
+      try {
+        const dateKey = format(item.timestamp, 'yyyy-MM-dd');
+        
+        if (!groups[dateKey]) {
+          groups[dateKey] = [];
+        }
+        groups[dateKey].push(item);
+      } catch (e) {
+        console.warn('Invalid date in message:', item);
+      }
     });
 
     return Object.entries(groups).map(([dateKey, items]) => ({
