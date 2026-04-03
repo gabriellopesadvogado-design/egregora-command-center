@@ -27,29 +27,39 @@ export const MessageBubble = ({ message, reactions = [], onReply }: MessageBubbl
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const isFromMe = message.is_from_me;
-  const time = format(new Date(message.timestamp), 'HH:mm');
+  
+  // Compatibilidade: suporta tanto o schema antigo (is_from_me) quanto o novo (message_from)
+  const isFromMe = (message as any).is_from_me ?? (message as any).message_from === 'human';
+  
+  // Compatibilidade: suporta tanto timestamp quanto sent_at
+  const messageTime = (message as any).sent_at || (message as any).timestamp;
+  const time = messageTime ? format(new Date(messageTime), 'HH:mm') : '--:--';
+  
   const { sendReaction } = useMessageReaction();
   const editMessage = useEditMessage();
 
   // Check if message can be edited (within 15 minutes and text only)
   const canEdit = isFromMe && 
     message.message_type === 'text' && 
-    (Date.now() - new Date(message.timestamp).getTime()) < 15 * 60 * 1000;
+    messageTime &&
+    (Date.now() - new Date(messageTime).getTime()) < 15 * 60 * 1000;
+
+  // Compatibilidade: suporta tanto message_id (antigo) quanto whatsapp_message_id (novo)
+  const messageId = (message as any).whatsapp_message_id || (message as any).message_id || message.id;
 
   const handleReact = (emoji: string) => {
     sendReaction.mutate({
-      messageId: message.message_id,
+      messageId: messageId,
       conversationId: message.conversation_id,
       emoji,
-      reactorJid: message.remote_jid,
+      reactorJid: (message as any).remote_jid || '',
       isFromMe: true,
     });
   };
 
   const handleEditSave = (newContent: string) => {
     editMessage.mutate({
-      messageId: message.message_id,
+      messageId: messageId,
       conversationId: message.conversation_id,
       newContent,
     }, {
@@ -209,7 +219,7 @@ export const MessageBubble = ({ message, reactions = [], onReply }: MessageBubbl
             isFromMe ? "left-0 -translate-x-full -ml-1" : "right-0 translate-x-full ml-1"
           )}>
             <MessageReactionButton
-              messageId={message.message_id}
+              messageId={messageId}
               conversationId={message.conversation_id}
               onReact={handleReact}
               isFromMe={isFromMe}
@@ -246,8 +256,8 @@ export const MessageBubble = ({ message, reactions = [], onReply }: MessageBubbl
               : 'bg-card text-card-foreground'
           )}
         >
-          {message.quoted_message_id && (
-            <QuotedMessagePreview messageId={message.quoted_message_id} />
+          {((message as any).quoted_message_id) && (
+            <QuotedMessagePreview messageId={(message as any).quoted_message_id} />
           )}
           
           {renderContent()}
@@ -261,7 +271,7 @@ export const MessageBubble = ({ message, reactions = [], onReply }: MessageBubbl
             >
               {time}
             </span>
-            {message.edited_at && (
+            {(message as any).edited_at && (
               <Popover>
                 <PopoverTrigger asChild>
                   <button 
@@ -275,9 +285,9 @@ export const MessageBubble = ({ message, reactions = [], onReply }: MessageBubbl
                 </PopoverTrigger>
                 <PopoverContent align="end" className="p-0 w-auto">
                   <EditHistoryPopover 
-                    messageId={message.message_id}
+                    messageId={messageId}
                     currentContent={message.content}
-                    originalContent={message.original_content}
+                    originalContent={(message as any).original_content}
                   />
                 </PopoverContent>
               </Popover>
