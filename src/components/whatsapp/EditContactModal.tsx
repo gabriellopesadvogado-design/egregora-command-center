@@ -20,6 +20,7 @@ interface EditContactModalProps {
   contactName: string;
   contactPhone: string;
   contactNotes?: string | null;
+  conversationId?: string;
   onSuccess?: () => void;
 }
 
@@ -33,11 +34,12 @@ export function EditContactModal({
   onOpenChange,
   contactId,
   contactName,
+  conversationId,
   contactPhone,
   contactNotes,
   onSuccess,
 }: EditContactModalProps) {
-  const { updateContact, isUpdatingContact } = useWhatsAppActions();
+  const { updateContact, isUpdatingContact } = useWhatsAppActions(conversationId);
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ContactFormData>({
     defaultValues: { 
       name: contactName, 

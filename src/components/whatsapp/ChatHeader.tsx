@@ -176,6 +176,7 @@ export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, convers
         contactName={contact.name}
         contactPhone={contact.phone_number}
         contactNotes={contact.notes || ''}
+        conversationId={conversationId}
         onSuccess={() => {
           setIsEditContactModalOpen(false);
           if (onRefresh) onRefresh();
