@@ -286,11 +286,15 @@ function buildZAPIRequest(
     }
 
     case 'document': {
+      // Extrair extensão do nome do arquivo
+      const extension = body.fileName?.split('.').pop() || 'pdf';
       return {
-        endpoint: `${baseUrl}/send-document/${body.fileName || 'document'}`,
+        endpoint: `${baseUrl}/send-document/${extension}`,
         requestBody: {
           phone,
           document: body.mediaBase64 || body.mediaUrl,
+          fileName: body.fileName,
+          caption: body.content || '',
         },
       };
     }
