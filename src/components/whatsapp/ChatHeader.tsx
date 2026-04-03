@@ -38,8 +38,8 @@ export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, convers
   
   if (!contact) return null;
   
-  const nameIsMissing = isContactNameMissing(contact.name, contact.phone_number);
-  const displayName = nameIsMissing ? 'Sem nome' : contact.name;
+  const nameIsMissing = isContactNameMissing(contact);
+  const displayName = nameIsMissing ? 'Sem nome' : (contact.name || contact.phone_number);
 
   const isInQueue = !conversation?.assigned_to;
   const canAssign = isAdmin || isSupervisor;
