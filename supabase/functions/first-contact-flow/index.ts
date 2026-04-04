@@ -241,52 +241,91 @@ async function sendViaZapi(
   record: FirstContactRecord
 ): Promise<{ success: boolean; error?: string; instance_id?: string }> {
   try {
-    // Buscar instância do SDR Hugo (ou primeiro SDR disponível)
-    const { data: instance } = await supabase
+    // Buscar hubspot_owner_id do lead para saber qual SDR está atribuído
+    const { data: lead } = await supabase
+      .from("crm_leads")
+      .select("hubspot_owner_id")
+      .eq("id", record.lead_id)
+      .single();
+
+    const ownerId = lead?.hubspot_owner_id;
+
+    // Buscar instância do SDR atribuído, ou primeiro SDR disponível como fallback
+    let instanceQuery = supabase
       .from("whatsapp_instances")
       .select("*")
       .eq("tipo", "sdr")
       .eq("is_connected", true)
       .eq("provider", "zapi")
-      .not("zapi_instance_id", "is", null)
-      .limit(1)
-      .single();
+      .not("zapi_instance_id", "is", null);
+
+    // Se tem owner_id, priorizar o SDR correspondente
+    if (ownerId) {
+      instanceQuery = instanceQuery.eq("hubspot_owner_id", ownerId);
+    }
+
+    const { data: instance } = await instanceQuery.limit(1).single();
+    
+    // Se não encontrou SDR específico, tentar qualquer SDR disponível
+    if (!instance && ownerId) {
+      const { data: fallbackInstance } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("tipo", "sdr")
+        .eq("is_connected", true)
+        .eq("provider", "zapi")
+        .not("zapi_instance_id", "is", null)
+        .limit(1)
+        .single();
+      
+      if (fallbackInstance) {
+        return await sendZapiMessage(fallbackInstance, record);
+      }
+    }
 
     if (!instance) {
       return { success: false, error: "Nenhuma instância Z-API de SDR disponível" };
     }
 
-    const phone = record.telefone.replace(/\D/g, "");
-    const firstName = (record.nome || "").split(" ")[0] || "Olá";
-    
-    // Mensagem de texto simples (não é template)
-    const message = `Olá, ${firstName}! 👋 Vi que você demonstrou interesse nos nossos serviços de assessoria em imigração. Sou da equipe Egrégora e gostaria de entender melhor como posso te ajudar. Você tem alguns minutos para conversarmos?`;
-
-    // Enviar via Z-API
-    const response = await fetch(
-      `${ZAPI_URL}/instances/${instance.zapi_instance_id}/token/${instance.zapi_token}/send-text`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Client-Token": instance.zapi_client_token || "",
-        },
-        body: JSON.stringify({
-          phone: phone,
-          message: message,
-        }),
-      }
-    );
-
-    const data = await response.json();
-    
-    if (data.error || data.zapiError) {
-      return { success: false, error: data.error || data.zapiError || "Erro Z-API" };
-    }
-
-    return { success: true, instance_id: instance.id };
+    return await sendZapiMessage(instance, record);
 
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+// Função auxiliar para enviar mensagem via Z-API
+async function sendZapiMessage(
+  instance: any,
+  record: FirstContactRecord
+): Promise<{ success: boolean; error?: string; instance_id?: string }> {
+  const phone = record.telefone.replace(/\D/g, "");
+  const firstName = (record.nome || "").split(" ")[0] || "Olá";
+  
+  // Mensagem de texto simples (não é template)
+  const message = `Olá, ${firstName}! 👋 Vi que você demonstrou interesse nos nossos serviços de assessoria em imigração. Sou da equipe Egrégora e gostaria de entender melhor como posso te ajudar. Você tem alguns minutos para conversarmos?`;
+
+  // Enviar via Z-API
+  const response = await fetch(
+    `${ZAPI_URL}/instances/${instance.zapi_instance_id}/token/${instance.zapi_token}/send-text`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Client-Token": instance.zapi_client_token || "",
+      },
+      body: JSON.stringify({
+        phone: phone,
+        message: message,
+      }),
+    }
+  );
+
+  const data = await response.json();
+  
+  if (data.error || data.zapiError) {
+    return { success: false, error: data.error || data.zapiError || "Erro Z-API" };
+  }
+
+  return { success: true, instance_id: instance.id };
 }

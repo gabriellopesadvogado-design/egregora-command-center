@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
           "firstname", "lastname", "email", "phone", "mobilephone",
           "utm_source", "utm_medium", "utm_campaign", "utm_content",
           "hs_analytics_source", "hs_analytics_source_data_1", "hs_analytics_source_data_2",
+          "hubspot_owner_id",
           "createdate"
         ],
         limit: Math.min(limit, 100),
@@ -175,6 +176,7 @@ Deno.serve(async (req) => {
       const email = props.email || null;
       const campanha = deriveCampaign(props);
       const canal = SOURCE_MAP[props.hs_analytics_source || ""] || null;
+      const hubspotOwnerId = props.hubspot_owner_id || null;
 
       // Verificar se já existe pelo hubspot_contact_id ou telefone
       const { data: existingLead } = await supabase
@@ -217,6 +219,7 @@ Deno.serve(async (req) => {
             utm_medium: props.utm_medium || null,
             utm_campaign: props.utm_campaign || null,
             utm_content: props.utm_content || null,
+            hubspot_owner_id: hubspotOwnerId,
           });
 
         if (!error) {
