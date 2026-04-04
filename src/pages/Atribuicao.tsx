@@ -17,6 +17,7 @@ import {
 import { AttributionFunnel } from "@/components/atribuicao/AttributionFunnel";
 import { AttributionTable } from "@/components/atribuicao/AttributionTable";
 import { AttributionChart } from "@/components/atribuicao/AttributionChart";
+import { LeadQualityChart } from "@/components/atribuicao/LeadQualityChart";
 
 type DateRange = "7d" | "30d" | "90d" | "all";
 
@@ -48,6 +49,18 @@ interface CampaignAttribution {
   cac: number;
   roas: number;
   avgDays: number;
+}
+
+interface QualityData {
+  campaign: string;
+  ruim: number;
+  bom: number;
+  muito_bom: number;
+  custo_ruim: number;
+  custo_bom: number;
+  custo_muito_bom: number;
+  total: number;
+  spend: number;
 }
 
 export default function Atribuicao() {
@@ -180,6 +193,55 @@ export default function Atribuicao() {
           avgDays,
         };
       }).sort((a, b) => b.revenue - a.revenue);
+    },
+  });
+
+  const { data: qualityData, isLoading: qualityLoading } = useQuery({
+    queryKey: ["attribution-quality", dateRange],
+    queryFn: async (): Promise<{ byCampaign: QualityData[]; totals: { ruim: number; bom: number; muito_bom: number } }> => {
+      const dateFilter = getDateFilter();
+
+      // Buscar de lead_attribution
+      let q1 = supabase.from("lead_attribution").select("utm_campaign, utm_source, qualidade_lead");
+      if (dateFilter) q1 = q1.gte("lead_created_at", dateFilter);
+      const { data: attrData } = await q1;
+
+      // Buscar de crm_leads
+      let q2 = supabase.from("crm_leads").select("campanha, utm_source, qualidade_lead");
+      if (dateFilter) q2 = q2.gte("created_at", dateFilter);
+      const { data: crmData } = await q2;
+
+      // Consolidar
+      const all = [
+        ...(attrData || []).map(r => ({ campaign: r.utm_campaign || r.utm_source || "Direto", quality: r.qualidade_lead })),
+        ...(crmData || []).map(r => ({ campaign: r.campanha || r.utm_source || "Direto", quality: r.qualidade_lead })),
+      ].filter(r => r.quality);
+
+      const totals = { ruim: 0, bom: 0, muito_bom: 0 };
+      const byCampaign: Record<string, { ruim: number; bom: number; muito_bom: number }> = {};
+
+      all.forEach(r => {
+        const q = r.quality as string;
+        if (q in totals) totals[q as keyof typeof totals]++;
+        if (!byCampaign[r.campaign]) byCampaign[r.campaign] = { ruim: 0, bom: 0, muito_bom: 0 };
+        if (q in byCampaign[r.campaign]) byCampaign[r.campaign][q as keyof typeof totals]++;
+      });
+
+      const result = Object.entries(byCampaign).map(([campaign, counts]) => {
+        const total = counts.ruim + counts.bom + counts.muito_bom;
+        const spend = total * 50;
+        return {
+          campaign,
+          ...counts,
+          total,
+          spend,
+          custo_ruim: counts.ruim ? spend / counts.ruim : 0,
+          custo_bom: counts.bom ? spend / counts.bom : 0,
+          custo_muito_bom: counts.muito_bom ? spend / counts.muito_bom : 0,
+        };
+      }).sort((a, b) => b.muito_bom - a.muito_bom);
+
+      return { byCampaign: result, totals };
     },
   });
 
@@ -362,6 +424,28 @@ export default function Atribuicao() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Qualidade de Leads */}
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            🎯 Qualidade de Leads por Campanha
+            <span className="text-xs font-normal text-muted-foreground ml-2">
+              Classificação: Ruim / Bom / Muito Bom
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {qualityLoading ? (
+            <Skeleton className="h-64" />
+          ) : (
+            <LeadQualityChart
+              data={qualityData?.byCampaign || []}
+              totals={qualityData?.totals || { ruim: 0, bom: 0, muito_bom: 0 }}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

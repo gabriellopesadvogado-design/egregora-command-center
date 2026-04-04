@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { MoreVertical, Edit, Archive, Download, CheckCircle, RotateCcw, ArrowRightLeft } from 'lucide-react';
+import { MoreVertical, Edit, Archive, Download, CheckCircle, RotateCcw, ArrowRightLeft, Star } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
@@ -35,6 +36,19 @@ export function ChatHeaderMenu({ conversation, onRefresh }: ChatHeaderMenuProps)
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [generateSummary, setGenerateSummary] = useState(true);
+  const [qualidadeLead, setQualidadeLead] = useState<string | null>(
+    conversation.contact?.qualidade_lead || null
+  );
+
+  const handleQualidade = async (qualidade: 'ruim' | 'bom' | 'muito_bom') => {
+    setQualidadeLead(qualidade);
+    await supabase
+      .from('whatsapp_contacts')
+      .update({ qualidade_lead: qualidade })
+      .eq('id', conversation.contact.id);
+    toast.success(`Lead classificado como ${qualidade === 'muito_bom' ? 'Muito Bom' : qualidade === 'bom' ? 'Bom' : 'Ruim'}`);
+    onRefresh?.();
+  };
 
   const { 
     archiveConversation, 
@@ -112,6 +126,32 @@ export function ChatHeaderMenu({ conversation, onRefresh }: ChatHeaderMenuProps)
           <DropdownMenuItem onClick={handleArchive} disabled={isArchiving}>
             <Archive className="mr-2 h-4 w-4" />
             Arquivar conversa
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          {/* Qualidade do Lead */}
+          <DropdownMenuItem className="font-medium text-xs text-muted-foreground" disabled>
+            <Star className="mr-2 h-3 w-3" />
+            Qualidade do Lead
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => handleQualidade('muito_bom')}
+            className={qualidadeLead === 'muito_bom' ? 'bg-green-500/10 text-green-500' : ''}
+          >
+            🟢 Muito Bom
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => handleQualidade('bom')}
+            className={qualidadeLead === 'bom' ? 'bg-amber-500/10 text-amber-500' : ''}
+          >
+            🟡 Bom
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => handleQualidade('ruim')}
+            className={qualidadeLead === 'ruim' ? 'bg-red-500/10 text-red-500' : ''}
+          >
+            🔴 Ruim
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
