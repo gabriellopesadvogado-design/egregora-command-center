@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { ImportLeadsModal } from "@/components/reativacao/ImportLeadsModal";
 import { 
   Flame,
   ThumbsUp,
@@ -16,6 +17,7 @@ import {
   Phone, 
   MessageSquare,
   Download,
+  Upload,
   Users,
   Target,
   TrendingUp,
@@ -53,6 +55,7 @@ interface LeadPerdido {
 
 export default function Reativacao() {
   const [activeTab, setActiveTab] = useState("hot");
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const { data: leadsPerdidos, isLoading } = useQuery({
     queryKey: ["leads-perdidos-qualificados"],
@@ -202,6 +205,8 @@ export default function Reativacao() {
   );
 
   return (
+    <>
+    <ImportLeadsModal open={importModalOpen} onOpenChange={setImportModalOpen} />
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -210,10 +215,16 @@ export default function Reativacao() {
             {total.toLocaleString()} leads perdidos • Ordenados por qualificação
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          <Download className="w-4 h-4 mr-2" />
-          Exportar Lista
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="default" size="sm" onClick={() => setImportModalOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar Qualificação
+          </Button>
+          <Button variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar Lista
+          </Button>
+        </div>
       </div>
 
       {/* Cards de resumo */}
@@ -287,6 +298,35 @@ export default function Reativacao() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Card de alerta para leads não qualificados */}
+      {naoQualificado.length > 10 && (
+        <Card className="border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-transparent">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-amber-500/20">
+                <HelpCircle className="w-6 h-6 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">
+                  ⚠️ <span className="text-amber-500 font-bold">{naoQualificado.length} leads</span> estão sem dados de qualificação
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Importe uma planilha com os dados desses leads para identificar os melhores para reativação.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                onClick={() => setImportModalOpen(true)}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Importar Dados
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Insight Card */}
       {hot.length > 0 && (
@@ -366,5 +406,6 @@ export default function Reativacao() {
         </Tabs>
       </Card>
     </div>
+    </>
   );
 }
