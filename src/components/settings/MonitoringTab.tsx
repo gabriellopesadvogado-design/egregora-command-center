@@ -114,152 +114,8 @@ export function MonitoringTab() {
     refetchInterval: 60000,
   });
 
-  // Fetch real credentials to build accurate health
-  const { data: apiCredentials = [] } = useQuery({
-    queryKey: ["api_credentials_health"],
-    queryFn: async () => {
-      const { data } = await supabase.from("api_credentials").select("*");
-      return data || [];
-    },
-  });
-
-  const { data: zapiInstances = [] } = useQuery({
-    queryKey: ["zapi_instances_health"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("whatsapp_instances")
-        .select("*")
-        .eq("provider", "zapi");
-      return data || [];
-    },
-  });
-
-  const { data: metaInstances = [] } = useQuery({
-    queryKey: ["meta_instances_health"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("whatsapp_instances")
-        .select("*")
-        .eq("provider", "meta");
-      return data || [];
-    },
-  });
-
-  // Build health data from real credentials (not duplicated)
-  const healthData: SystemHealth[] = (() => {
-    const items: SystemHealth[] = [];
-    const now = new Date().toISOString();
-
-    // Supabase - always healthy if we can query
-    items.push({
-      id: "supabase",
-      component: "supabase",
-      status: "healthy",
-      status_message: "Conectado",
-      latency_ms: null,
-      success_rate: 100,
-      last_error: null,
-      last_error_at: null,
-      last_check_at: now,
-      metadata: {},
-    });
-
-    // Z-API instances
-    const zapiConnected = zapiInstances.filter((i: any) => i.is_connected && i.zapi_instance_id);
-    const zapiTotal = zapiInstances.filter((i: any) => i.zapi_instance_id).length;
-    if (zapiTotal > 0) {
-      items.push({
-        id: "zapi",
-        component: "zapi",
-        status: zapiConnected.length === zapiTotal ? "healthy" : zapiConnected.length > 0 ? "degraded" : "down",
-        status_message: `${zapiConnected.length}/${zapiTotal} instâncias conectadas`,
-        latency_ms: null,
-        success_rate: zapiTotal > 0 ? Math.round((zapiConnected.length / zapiTotal) * 100) : 0,
-        last_error: null,
-        last_error_at: null,
-        last_check_at: now,
-        metadata: {},
-      });
-    }
-
-    // API Oficial WhatsApp (Meta)
-    const metaConnected = metaInstances.filter((i: any) => i.is_connected).length;
-    const metaAccessToken = apiCredentials.find((c: any) => c.provider === "meta" && c.credential_type === "access_token" && c.is_valid);
-    items.push({
-      id: "whatsapp_oficial",
-      component: "whatsapp_oficial",
-      status: metaConnected > 0 || metaAccessToken ? "healthy" : "unknown",
-      status_message: metaConnected > 0 ? "Conectado" : metaAccessToken ? "Credenciais válidas" : "Não configurado",
-      latency_ms: null,
-      success_rate: 100,
-      last_error: null,
-      last_error_at: null,
-      last_check_at: now,
-      metadata: {},
-    });
-
-    // Meta Ads (separado)
-    const metaAdsCreds = apiCredentials.filter((c: any) => c.provider === "meta" && (c.credential_type === "pixel_id" || c.credential_type === "account_id") && c.is_valid);
-    items.push({
-      id: "meta_ads",
-      component: "meta_ads",
-      status: metaAdsCreds.length > 0 ? "healthy" : "unknown",
-      status_message: metaAdsCreds.length > 0 ? "Credenciais configuradas" : "Não configurado",
-      latency_ms: null,
-      success_rate: null,
-      last_error: null,
-      last_error_at: null,
-      last_check_at: now,
-      metadata: {},
-    });
-
-    // OpenAI
-    const openaiCreds = apiCredentials.filter((c: any) => c.provider === "openai" && c.is_valid);
-    items.push({
-      id: "openai",
-      component: "openai",
-      status: openaiCreds.length > 0 ? "healthy" : "unknown",
-      status_message: openaiCreds.length > 0 ? "API Key configurada" : "Não configurado",
-      latency_ms: null,
-      success_rate: null,
-      last_error: null,
-      last_error_at: null,
-      last_check_at: now,
-      metadata: {},
-    });
-
-    // HubSpot
-    const hubspotCreds = apiCredentials.filter((c: any) => c.provider === "hubspot" && c.is_valid);
-    items.push({
-      id: "hubspot",
-      component: "hubspot",
-      status: hubspotCreds.length > 0 ? "healthy" : "unknown",
-      status_message: hubspotCreds.length > 0 ? "API Key configurada" : "Não configurado",
-      latency_ms: null,
-      success_rate: null,
-      last_error: null,
-      last_error_at: null,
-      last_check_at: now,
-      metadata: {},
-    });
-
-    // Google Ads
-    const googleCreds = apiCredentials.filter((c: any) => c.provider === "google" && c.is_valid);
-    items.push({
-      id: "google_ads",
-      component: "google_ads",
-      status: googleCreds.length > 0 ? "healthy" : "unknown",
-      status_message: googleCreds.length > 0 ? "Credenciais configuradas" : "Não configurado",
-      latency_ms: null,
-      success_rate: null,
-      last_error: null,
-      last_error_at: null,
-      last_check_at: now,
-      metadata: {},
-    });
-
-    return items;
-  })();
+  // Dados vêm direto da tabela system_health (atualizada pelo cron a cada 5 min)
+  const healthData = rawHealthData;
 
   // Fetch alerts
   const { data: alerts = [], isLoading: alertsLoading } = useQuery({
@@ -316,13 +172,46 @@ export function MonitoringTab() {
   const unresolvedAlerts = alerts.filter((a) => !a.is_resolved);
   const criticalAlerts = unresolvedAlerts.filter((a) => a.severity === "critical").length;
 
-  // Refresh all health checks
+  // Estado para loading do refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Refresh all health checks - chama a Edge Function real
   const refreshHealth = async () => {
-    // Aqui chamaria uma Edge Function para verificar todos os componentes
+    setIsRefreshing(true);
     toast.info("Verificando integrações...");
-    await new Promise((r) => setTimeout(r, 2000));
-    queryClient.invalidateQueries({ queryKey: ["system_health"] });
-    toast.success("Verificação concluída");
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL || 'https://zxwkjogjbyywufertkor.supabase.co'}/functions/v1/health-check`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["system_health"] });
+        
+        const downCount = result.results?.filter((r: any) => r.status === 'down').length || 0;
+        if (downCount > 0) {
+          toast.error(`Verificação concluída — ${downCount} integração(ões) com problema`);
+        } else {
+          toast.success("Verificação concluída — todas as integrações OK");
+        }
+      } else {
+        toast.error("Erro ao verificar integrações");
+      }
+    } catch (error) {
+      console.error('[MonitoringTab] Refresh error:', error);
+      toast.error("Erro ao conectar com o servidor");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -338,9 +227,9 @@ export function MonitoringTab() {
             Visão geral da saúde do sistema e alertas
           </p>
         </div>
-        <Button variant="outline" onClick={refreshHealth}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Verificar Agora
+        <Button variant="outline" onClick={refreshHealth} disabled={isRefreshing}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Verificando...' : 'Verificar Agora'}
         </Button>
       </div>
 
