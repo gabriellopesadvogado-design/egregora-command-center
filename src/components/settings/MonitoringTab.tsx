@@ -287,12 +287,17 @@ export function MonitoringTab() {
               <div>
                 <p className="text-sm text-muted-foreground">Última Verificação</p>
                 <p className="text-lg font-semibold">
-                  {healthData[0]?.last_check_at
-                    ? formatDistanceToNow(new Date(healthData[0].last_check_at), {
-                        addSuffix: true,
-                        locale: ptBR,
-                      })
-                    : "-"}
+                  {(() => {
+                    const mostRecent = healthData
+                      .filter(h => h.last_check_at)
+                      .sort((a, b) => new Date(b.last_check_at).getTime() - new Date(a.last_check_at).getTime())[0];
+                    return mostRecent?.last_check_at
+                      ? formatDistanceToNow(new Date(mostRecent.last_check_at), {
+                          addSuffix: true,
+                          locale: ptBR,
+                        })
+                      : "-";
+                  })()}
                 </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/20">
