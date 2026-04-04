@@ -37,8 +37,8 @@ const fmt = (n: number) => new Intl.NumberFormat("pt-BR", {
 
 export function LeadQualityChart({ data, totals }: LeadQualityChartProps) {
   const pieData = [
-    { name: "Muito Bom", value: totals.muito_bom, color: QUALITY_COLORS.muito_bom },
-    { name: "Bom", value: totals.bom, color: QUALITY_COLORS.bom },
+    { name: "Boa", value: totals.muito_bom, color: QUALITY_COLORS.muito_bom },
+    { name: "Neutra", value: totals.bom, color: QUALITY_COLORS.bom },
     { name: "Ruim", value: totals.ruim, color: QUALITY_COLORS.ruim },
   ].filter(d => d.value > 0);
 
@@ -93,9 +93,9 @@ export function LeadQualityChart({ data, totals }: LeadQualityChartProps) {
               <tr className="border-b border-border/50">
                 <th className="text-left py-2 text-muted-foreground font-medium">Campanha</th>
                 <th className="text-right py-2 text-red-400 font-medium">Ruim</th>
-                <th className="text-right py-2 text-amber-400 font-medium">Bom</th>
-                <th className="text-right py-2 text-green-400 font-medium">Muito Bom</th>
-                <th className="text-right py-2 text-muted-foreground font-medium">C/MuitoBom</th>
+                <th className="text-right py-2 text-amber-400 font-medium">Neutra</th>
+                <th className="text-right py-2 text-green-400 font-medium">Boa</th>
+                <th className="text-right py-2 text-muted-foreground font-medium">Custo/Boa</th>
               </tr>
             </thead>
             <tbody>

@@ -201,35 +201,48 @@ export default function Atribuicao() {
     queryFn: async (): Promise<{ byCampaign: QualityData[]; totals: { ruim: number; bom: number; muito_bom: number } }> => {
       const dateFilter = getDateFilter();
 
-      // Buscar de lead_attribution
-      let q1 = supabase.from("lead_attribution").select("utm_campaign, utm_source, qualidade_lead");
-      if (dateFilter) q1 = q1.gte("lead_created_at", dateFilter);
-      const { data: attrData } = await q1;
+      // Fonte principal: crm_meetings com avaliacao_reuniao
+      // Faz join com crm_leads para pegar a campanha
+      let q = supabase
+        .from("crm_meetings")
+        .select("avaliacao_reuniao, lead_id, created_at")
+        .not("avaliacao_reuniao", "is", null);
+      if (dateFilter) q = q.gte("created_at", dateFilter);
+      const { data: meetings } = await q;
 
-      // Buscar de crm_leads
-      let q2 = supabase.from("crm_leads").select("campanha, utm_source, qualidade_lead");
-      if (dateFilter) q2 = q2.gte("created_at", dateFilter);
-      const { data: crmData } = await q2;
+      // Buscar leads para pegar campanha
+      const leadIds = [...new Set((meetings || []).map(m => m.lead_id).filter(Boolean))];
+      const { data: leads } = leadIds.length
+        ? await supabase.from("crm_leads").select("id, campanha, utm_source, utm_campaign, canal").in("id", leadIds)
+        : { data: [] };
 
-      // Consolidar
-      const all = [
-        ...(attrData || []).map(r => ({ campaign: r.utm_campaign || r.utm_source || "Direto", quality: r.qualidade_lead })),
-        ...(crmData || []).map(r => ({ campaign: r.campanha || r.utm_source || "Direto", quality: r.qualidade_lead })),
-      ].filter(r => r.quality);
+      const leadMap: Record<string, any> = {};
+      (leads || []).forEach(l => { leadMap[l.id] = l; });
+
+      // Normalizar qualidade: boa → bom, neutra → bom (intermediário), ruim → ruim
+      const normalize = (q: string): keyof typeof totals => {
+        if (q === "boa") return "muito_bom";
+        if (q === "neutra") return "bom";
+        return "ruim";
+      };
 
       const totals = { ruim: 0, bom: 0, muito_bom: 0 };
       const byCampaign: Record<string, { ruim: number; bom: number; muito_bom: number }> = {};
 
-      all.forEach(r => {
-        const q = r.quality as string;
-        if (q in totals) totals[q as keyof typeof totals]++;
-        if (!byCampaign[r.campaign]) byCampaign[r.campaign] = { ruim: 0, bom: 0, muito_bom: 0 };
-        if (q in byCampaign[r.campaign]) byCampaign[r.campaign][q as keyof typeof totals]++;
+      (meetings || []).forEach(m => {
+        const q = normalize(m.avaliacao_reuniao);
+        totals[q]++;
+        
+        const lead = m.lead_id ? leadMap[m.lead_id] : null;
+        const campaign = lead?.campanha || lead?.utm_campaign || lead?.utm_source || lead?.canal || "Sem campanha";
+        
+        if (!byCampaign[campaign]) byCampaign[campaign] = { ruim: 0, bom: 0, muito_bom: 0 };
+        byCampaign[campaign][q]++;
       });
 
       const result = Object.entries(byCampaign).map(([campaign, counts]) => {
         const total = counts.ruim + counts.bom + counts.muito_bom;
-        const spend = total * 50;
+        const spend = total * 50; // TODO: buscar spend real por campanha via meta-api
         return {
           campaign,
           ...counts,
