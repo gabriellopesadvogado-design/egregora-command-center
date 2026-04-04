@@ -13,20 +13,16 @@ export default function Pipeline() {
   const [filters, setFilters] = useState<KanbanFiltersState>({});
   const [newLeadOpen, setNewLeadOpen] = useState(false);
 
-  // Auto-filter by role
+  // Filtros do Pipeline - todos veem todos os negócios por padrão
   const meetingsFilters = useMemo(() => {
     const f: any = {};
-    if (role === "closer") {
-      f.closerId = filters.responsavelId || user?.id;
-    } else if (role === "sdr") {
-      f.sdrId = filters.responsavelId || user?.id;
-    } else if (filters.responsavelId) {
-      // admin/gestor filtering by a specific user — check both closer and sdr
+    // Filtro opcional por responsável (dropdown)
+    if (filters.responsavelId) {
       f.closerId = filters.responsavelId;
     }
     if (filters.searchTerm) f.searchTerm = filters.searchTerm;
     return f;
-  }, [filters, role, user?.id]);
+  }, [filters]);
 
   const { data: meetings = [], isLoading } = useMeetings(meetingsFilters);
 
