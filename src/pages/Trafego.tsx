@@ -141,33 +141,14 @@ export default function Trafego() {
       </Card>
 
       {/* Creatives Row */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-green-500">🚀 Melhores Criativos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isAdLoading ? (
-              <div className="h-48 bg-muted rounded animate-pulse" />
-            ) : (
-              <CreativeAlertsWidget bestCreatives={bestCreatives || []} worstCreatives={[]} />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-red-500">⚠️ Criativos para Revisar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isAdLoading ? (
-              <div className="h-48 bg-muted rounded animate-pulse" />
-            ) : (
-              <CreativeAlertsWidget bestCreatives={[]} worstCreatives={worstCreatives || []} />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {isAdLoading ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card><CardContent className="p-6"><div className="h-48 bg-muted rounded animate-pulse" /></CardContent></Card>
+          <Card><CardContent className="p-6"><div className="h-48 bg-muted rounded animate-pulse" /></CardContent></Card>
+        </div>
+      ) : (
+        <CreativeAlertsWidget bestCreatives={bestCreatives || []} worstCreatives={worstCreatives || []} />
+      )}
 
       {/* AI Insights */}
       <AIInsightsCard insights={[]} />
