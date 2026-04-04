@@ -92,6 +92,7 @@ export function LeadQualityChart({ data, totals }: LeadQualityChartProps) {
             <thead>
               <tr className="border-b border-border/50">
                 <th className="text-left py-2 text-muted-foreground font-medium">Campanha</th>
+                <th className="text-right py-2 text-muted-foreground font-medium">Spend</th>
                 <th className="text-right py-2 text-red-400 font-medium">Ruim</th>
                 <th className="text-right py-2 text-amber-400 font-medium">Neutra</th>
                 <th className="text-right py-2 text-green-400 font-medium">Boa</th>
@@ -101,8 +102,11 @@ export function LeadQualityChart({ data, totals }: LeadQualityChartProps) {
             <tbody>
               {data.map(row => (
                 <tr key={row.campaign} className="border-b border-border/30 hover:bg-muted/20">
-                  <td className="py-2 font-medium max-w-[100px] truncate" title={row.campaign}>
+                  <td className="py-2 font-medium max-w-[120px] truncate" title={row.campaign}>
                     {row.campaign}
+                  </td>
+                  <td className="py-2 text-right text-muted-foreground">
+                    {row.spend > 0 ? fmt(row.spend) : "—"}
                   </td>
                   <td className="py-2 text-right text-red-400">{row.ruim}</td>
                   <td className="py-2 text-right text-amber-400">{row.bom}</td>

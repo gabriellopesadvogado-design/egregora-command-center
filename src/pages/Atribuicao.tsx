@@ -240,19 +240,31 @@ export default function Atribuicao() {
         byCampaign[campaign][q]++;
       });
 
+      // Buscar spend real do Meta via meta_campaign_map
+      const { data: campMap } = await supabase
+        .from("meta_campaign_map")
+        .select("internal_campaign, meta_campaign_id");
+      
+      // Spend real por campanha (hardcoded por agora, será dinâmico via API)
+      const spendMap: Record<string, number> = {
+        "Meta_Leadads_Principal": 13036.26,
+        "Meta_Escala": 2553.35,
+        "Meta_Nova_Leads": 90.64,
+      };
+
       const result = Object.entries(byCampaign).map(([campaign, counts]) => {
         const total = counts.ruim + counts.bom + counts.muito_bom;
-        const spend = total * 50; // TODO: buscar spend real por campanha via meta-api
+        const spend = spendMap[campaign] || 0;
         return {
           campaign,
           ...counts,
           total,
           spend,
-          custo_ruim: counts.ruim ? spend / counts.ruim : 0,
-          custo_bom: counts.bom ? spend / counts.bom : 0,
-          custo_muito_bom: counts.muito_bom ? spend / counts.muito_bom : 0,
+          custo_ruim: counts.ruim && spend ? spend / counts.ruim : 0,
+          custo_bom: counts.bom && spend ? spend / counts.bom : 0,
+          custo_muito_bom: counts.muito_bom && spend ? spend / counts.muito_bom : 0,
         };
-      }).sort((a, b) => b.muito_bom - a.muito_bom);
+      }).sort((a, b) => b.spend - a.spend);
 
       return { byCampaign: result, totals };
     },
