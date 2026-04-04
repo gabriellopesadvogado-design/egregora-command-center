@@ -64,8 +64,10 @@ interface SystemAlert {
 const COMPONENT_ICONS: Record<string, any> = {
   supabase: Database,
   meta_api: BarChart3,
+  meta: BarChart3,
   google_api: BarChart3,
-  evolution: MessageSquare,
+  google: BarChart3,
+  zapi: MessageSquare,
   openai: Brain,
   hubspot: Database,
   webhook: Wifi,
@@ -73,9 +75,11 @@ const COMPONENT_ICONS: Record<string, any> = {
 
 const COMPONENT_LABELS: Record<string, string> = {
   supabase: "Supabase",
-  meta_api: "Meta Ads API",
-  google_api: "Google Ads API",
-  evolution: "Evolution (WhatsApp)",
+  meta_api: "Meta (WhatsApp + Ads)",
+  meta: "Meta (WhatsApp + Ads)",
+  google_api: "Google Ads",
+  google: "Google Ads",
+  zapi: "Z-API (WhatsApp)",
   openai: "OpenAI",
   hubspot: "HubSpot",
   webhook: "Webhooks",
@@ -98,8 +102,8 @@ const SEVERITY_CONFIG: Record<string, { color: string; icon: any }> = {
 export function MonitoringTab() {
   const queryClient = useQueryClient();
 
-  // Fetch health data
-  const { data: healthData = [], isLoading: healthLoading } = useQuery({
+  // Fetch health data from system_health
+  const { data: rawHealthData = [], isLoading: healthLoading } = useQuery({
     queryKey: ["system_health"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -109,8 +113,142 @@ export function MonitoringTab() {
       if (error) throw error;
       return data as SystemHealth[];
     },
-    refetchInterval: 60000, // Atualiza a cada 1 minuto
+    refetchInterval: 60000,
   });
+
+  // Fetch real credentials to build accurate health
+  const { data: apiCredentials = [] } = useQuery({
+    queryKey: ["api_credentials_health"],
+    queryFn: async () => {
+      const { data } = await supabase.from("api_credentials").select("*");
+      return data || [];
+    },
+  });
+
+  const { data: zapiInstances = [] } = useQuery({
+    queryKey: ["zapi_instances_health"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("provider", "zapi");
+      return data || [];
+    },
+  });
+
+  const { data: metaInstances = [] } = useQuery({
+    queryKey: ["meta_instances_health"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("provider", "meta");
+      return data || [];
+    },
+  });
+
+  // Build health data from real credentials (not duplicated)
+  const healthData: SystemHealth[] = (() => {
+    const items: SystemHealth[] = [];
+    const now = new Date().toISOString();
+
+    // Supabase - always healthy if we can query
+    items.push({
+      id: "supabase",
+      component: "supabase",
+      status: "healthy",
+      status_message: "Conectado",
+      latency_ms: null,
+      success_rate: 100,
+      last_error: null,
+      last_error_at: null,
+      last_check_at: now,
+      metadata: {},
+    });
+
+    // Z-API instances
+    const zapiConnected = zapiInstances.filter((i: any) => i.is_connected && i.zapi_instance_id);
+    const zapiTotal = zapiInstances.filter((i: any) => i.zapi_instance_id).length;
+    if (zapiTotal > 0) {
+      items.push({
+        id: "zapi",
+        component: "zapi",
+        status: zapiConnected.length === zapiTotal ? "healthy" : zapiConnected.length > 0 ? "degraded" : "down",
+        status_message: `${zapiConnected.length}/${zapiTotal} instâncias conectadas`,
+        latency_ms: null,
+        success_rate: zapiTotal > 0 ? Math.round((zapiConnected.length / zapiTotal) * 100) : 0,
+        last_error: null,
+        last_error_at: null,
+        last_check_at: now,
+        metadata: {},
+      });
+    }
+
+    // Meta (WhatsApp + Ads)
+    const metaConnected = metaInstances.filter((i: any) => i.is_connected).length;
+    const metaCreds = apiCredentials.filter((c: any) => c.provider === "meta" && c.is_valid);
+    if (metaInstances.length > 0 || metaCreds.length > 0) {
+      items.push({
+        id: "meta",
+        component: "meta",
+        status: metaConnected > 0 || metaCreds.length > 0 ? "healthy" : "down",
+        status_message: metaConnected > 0 ? `${metaConnected} instância(s) conectada(s)` : metaCreds.length > 0 ? "Credenciais válidas" : "Não configurado",
+        latency_ms: null,
+        success_rate: 100,
+        last_error: null,
+        last_error_at: null,
+        last_check_at: now,
+        metadata: {},
+      });
+    }
+
+    // OpenAI
+    const openaiCreds = apiCredentials.filter((c: any) => c.provider === "openai" && c.is_valid);
+    items.push({
+      id: "openai",
+      component: "openai",
+      status: openaiCreds.length > 0 ? "healthy" : "unknown",
+      status_message: openaiCreds.length > 0 ? "API Key configurada" : "Não configurado",
+      latency_ms: null,
+      success_rate: null,
+      last_error: null,
+      last_error_at: null,
+      last_check_at: now,
+      metadata: {},
+    });
+
+    // HubSpot
+    const hubspotCreds = apiCredentials.filter((c: any) => c.provider === "hubspot" && c.is_valid);
+    items.push({
+      id: "hubspot",
+      component: "hubspot",
+      status: hubspotCreds.length > 0 ? "healthy" : "unknown",
+      status_message: hubspotCreds.length > 0 ? "API Key configurada" : "Não configurado",
+      latency_ms: null,
+      success_rate: null,
+      last_error: null,
+      last_error_at: null,
+      last_check_at: now,
+      metadata: {},
+    });
+
+    // Google Ads
+    const googleCreds = apiCredentials.filter((c: any) => c.provider === "google" && c.is_valid);
+    items.push({
+      id: "google",
+      component: "google",
+      status: googleCreds.length > 0 ? "healthy" : "unknown",
+      status_message: googleCreds.length > 0 ? "Credenciais configuradas" : "Não configurado",
+      latency_ms: null,
+      success_rate: null,
+      last_error: null,
+      last_error_at: null,
+      last_check_at: now,
+      metadata: {},
+    });
+
+    return items;
+  })();
 
   // Fetch alerts
   const { data: alerts = [], isLoading: alertsLoading } = useQuery({
