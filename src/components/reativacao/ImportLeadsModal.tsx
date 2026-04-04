@@ -210,13 +210,27 @@ export function ImportLeadsModal({ open, onOpenChange }: ImportLeadsModalProps) 
       const lead = updatedLeads[i];
       
       try {
-        // Buscar lead pelo telefone
-        const { data: existingLead, error: searchError } = await supabase
+        // Buscar lead pelo telefone usando ilike para ignorar + ou outros caracteres
+        const phoneClean = lead.telefone;
+        
+        // Primeiro tenta match exato, depois ilike
+        let { data: existingLeads } = await supabase
           .from("crm_leads")
           .select("id")
-          .or(`telefone.eq.${lead.telefone},whatsapp.eq.${lead.telefone}`)
-          .limit(1)
-          .single();
+          .or(`telefone.eq.${phoneClean},whatsapp.eq.${phoneClean}`)
+          .limit(1);
+        
+        // Se não encontrou, tenta com ilike (contém)
+        if (!existingLeads?.length) {
+          const { data: ilikeLead } = await supabase
+            .from("crm_leads")
+            .select("id")
+            .or(`telefone.ilike.%${phoneClean}%,whatsapp.ilike.%${phoneClean}%`)
+            .limit(1);
+          existingLeads = ilikeLead;
+        }
+        
+        const existingLead = existingLeads?.[0];
 
         if (searchError || !existingLead) {
           updatedLeads[i]._status = "not_found";
