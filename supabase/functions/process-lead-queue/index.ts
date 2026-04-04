@@ -119,11 +119,14 @@ Deno.serve(async (req) => {
       .from('api_credentials')
       .select('*')
       .eq('provider', 'meta')
-      .eq('is_active', true)
+      .eq('credential_type', 'access_token')
+      .eq('is_valid', true)
       .single();
 
     if (!metaConfig) {
       console.log('[process-lead-queue] Meta API not configured');
+    } else {
+      console.log('[process-lead-queue] Meta API found:', metaConfig.label);
     }
 
     // Buscar template ativo
@@ -134,6 +137,12 @@ Deno.serve(async (req) => {
       .eq('status', 'approved')
       .limit(1)
       .single();
+    
+    if (!template) {
+      console.log('[process-lead-queue] No approved template found');
+    } else {
+      console.log('[process-lead-queue] Template found:', template.name);
+    }
 
     // 1. Processar leads aguardando (5 min passaram, não chamaram)
     const { data: waitingLeads, error: waitingError } = await supabase
@@ -185,8 +194,8 @@ Deno.serve(async (req) => {
 
       // Tentar enviar template via API oficial
       if (metaConfig && template) {
-        const phoneNumberId = metaConfig.credentials?.phone_number_id;
-        const accessToken = metaConfig.credentials?.access_token;
+        const phoneNumberId = metaConfig.metadata?.phone_number_id;
+        const accessToken = metaConfig.value_encrypted;
 
         if (phoneNumberId && accessToken) {
           const variables = [lead.lead_name || 'Cliente'];
@@ -234,12 +243,17 @@ Deno.serve(async (req) => {
       if (lead.sdr_instance_id) {
         const { data: sdrInstance } = await supabase
           .from('whatsapp_instances')
-          .select('*')
+          .select('*, user:user_id(nome)')
           .eq('id', lead.sdr_instance_id)
           .single();
 
         if (sdrInstance?.zapi_instance_id && sdrInstance?.zapi_token && sdrInstance?.zapi_client_token) {
-          const fallbackMessage = `Olá${lead.lead_name ? `, ${lead.lead_name}` : ''}! Vi que você se interessou pelos nossos serviços. Posso te ajudar?`;
+          // Extrair primeiro nome do SDR
+          const sdrFullName = (sdrInstance.user as any)?.nome || 'Atendente';
+          const sdrFirstName = sdrFullName.split(' ')[0];
+          
+          // Mensagem personalizada com nome do SDR
+          const fallbackMessage = `Olá${lead.lead_name ? `, ${lead.lead_name}` : ''}! Eu sou o ${sdrFirstName}, faço parte da equipe da Egrégora e serei o responsável pelo seu atendimento. Como posso te ajudar? 😊`;
           
           const result = await sendZAPIMessage(
             sdrInstance.zapi_instance_id,
