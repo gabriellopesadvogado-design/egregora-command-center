@@ -9,6 +9,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ["lamejs"],
+  },
   server: {
     host: "::",
     port: 8080,

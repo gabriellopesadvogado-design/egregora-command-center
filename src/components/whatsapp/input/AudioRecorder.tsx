@@ -4,7 +4,7 @@ import { X, Send, StopCircle, Headphones, Trash2, RotateCcw, Loader2 } from "luc
 import { MediaSendParams } from "./MessageInputContainer";
 import { useToast } from "@/hooks/use-toast";
 // @ts-ignore
-const { Mp3Encoder } = require("lamejs");
+import lamejs from "lamejs";
 
 interface AudioRecorderProps {
   onSend: (params: MediaSendParams) => void;
@@ -52,7 +52,7 @@ export const AudioRecorder = ({ onSend, onCancel }: AudioRecorderProps) => {
     const rightChannel = numChannels > 1 ? audioBuffer.getChannelData(1) : leftChannel;
 
     // Inicializa o encoder MP3
-    const mp3Encoder = new Mp3Encoder(numChannels, sampleRate, 128);
+    const mp3Encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, 128);
     const mp3Data: Uint8Array[] = [];
     const blockSize = 1152;
 
