@@ -229,6 +229,11 @@ Deno.serve(async (req) => {
               contentType: cleanMimeType,
               upsert: true,
             });
+
+          // Guardar URL pública para usar no insert da mensagem
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          (body as any)._storedMediaUrl = `${supabaseUrl}/storage/v1/object/public/whatsapp-media/${filePath}`;
+          (body as any)._cleanMimeType = cleanMimeType;
         }
 
         // Montar payload para enviar mensagem com media_id
@@ -282,13 +287,15 @@ Deno.serve(async (req) => {
 
       const metaMessageId = metaResponse.messages[0].id;
 
-      // Salvar mensagem no banco
+      // Salvar mensagem no banco com tipo e mídia corretos
       await supabase.from('whatsapp_messages').insert({
         conversation_id: body.conversationId,
         contact_id: contact.id,
         message_from: 'human',
-        message_type: 'text',
-        content: body.content,
+        message_type: body.messageType,
+        content: body.content || null,
+        media_url: (body as any)._storedMediaUrl || null,
+        media_mime_type: (body as any)._cleanMimeType || null,
         whatsapp_message_id: metaMessageId,
         status: 'sent',
         sent_at: new Date().toISOString(),
