@@ -5,13 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Mapeamento de campanhas
-const CAMPAIGN_MAP: Record<string, string> = {
-  "[Y][Leads] - Leadads — Cópia [25.04]": "Meta_Leadads_Principal",
-  "Campanha Escala": "Meta_Escala",
-  "Nova campanha de Leads": "Meta_Nova_Leads",
-  "Leadads": "Meta_Leadads_Principal",
-};
+// Mapeamento de campanhas - usar nomes reais do Meta
+// Quando o utm_campaign vem como {{campaign.name}}, inferimos pela campanha ativa
+const CAMPAIGN_FALLBACK_META = "[Y][Leads] - Leadads — Cópia [25.04]"; // Campanha principal ativa
 
 const SOURCE_MAP: Record<string, string> = {
   "PAID_SOCIAL": "Meta_Ads",
@@ -35,34 +31,41 @@ function deriveCampaign(props: Record<string, string>): string {
   const source = props.hs_analytics_source || "";
   const drill1 = props.hs_analytics_source_data_1 || "";
 
-  // Se tem {{campaign.name}} não resolvido, usar campanha principal do Meta
+  // Se tem {{campaign.name}} não resolvido, usar campanha principal ativa do Meta
   if (campanha.includes("{{")) {
     if (source === "PAID_SOCIAL" && drill1.toLowerCase().includes("facebook")) {
-      return "Meta_Leadads_Principal";
+      return CAMPAIGN_FALLBACK_META; // Nome real da campanha principal
     }
     campanha = "";
   }
 
-  // Mapear nome de campanha
-  if (campanha && CAMPAIGN_MAP[campanha]) {
-    return CAMPAIGN_MAP[campanha];
+  // Se tem utm_campaign válido, usar diretamente (nome real)
+  if (campanha && !campanha.includes("{{")) {
+    return campanha;
   }
-  if (campanha) return campanha;
 
-  // Derivar do source
+  // Derivar do source quando não tem utm_campaign
   if (source === "PAID_SOCIAL" && drill1.toLowerCase().includes("facebook")) {
-    return "Meta_Leadads_Principal";
+    return CAMPAIGN_FALLBACK_META; // Meta Ads sem UTM específico
   }
-  if (source === "PAID_SEARCH") return "Google_Ads";
-  if (source === "ORGANIC_SEARCH") return "Organico_Google";
+  if (source === "PAID_SEARCH") {
+    // Tentar extrair nome da campanha do drill1 se possível
+    if (drill1 && drill1 !== "Auto-tagged PPC" && !drill1.startsWith("g-")) {
+      return drill1; // Nome real do Google
+    }
+    return "Google Ads";
+  }
+  if (source === "ORGANIC_SEARCH") return "Orgânico - Google";
   if (source === "SOCIAL_MEDIA") {
-    if (drill1.toLowerCase().includes("instagram")) return "Organico_Instagram";
-    return "Organico_Social";
+    if (drill1.toLowerCase().includes("instagram")) return "Orgânico - Instagram";
+    if (drill1.toLowerCase().includes("facebook")) return "Orgânico - Facebook";
+    return "Orgânico - Social";
   }
-  if (source === "DIRECT_TRAFFIC") return "Direto";
-  if (source === "OFFLINE") return "Offline_Manual";
+  if (source === "DIRECT_TRAFFIC") return "Tráfego Direto";
+  if (source === "OFFLINE") return "Cadastro Manual";
+  if (source === "REFERRALS") return "Indicação";
   
-  return SOURCE_MAP[source] || "";
+  return source || "Origem desconhecida";
 }
 
 Deno.serve(async (req) => {

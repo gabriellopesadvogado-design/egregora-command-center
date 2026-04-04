@@ -89,11 +89,12 @@ Deno.serve(async (req) => {
       mapById[m.meta_campaign_id] = m.internal_campaign;
     });
 
-    // Process results
+    // Process results - usar campaign_name real do Meta
     const campaigns: CampaignSpend[] = (metaData.data || []).map((row: any) => ({
       campaign_id: row.campaign_id,
       campaign_name: row.campaign_name,
-      internal_campaign: mapById[row.campaign_id] || null,
+      // internal_campaign agora usa o nome real da campanha (para cruzar com crm_leads.campanha)
+      internal_campaign: row.campaign_name,
       spend: parseFloat(row.spend || 0),
       impressions: parseInt(row.impressions || 0),
       clicks: parseInt(row.clicks || 0),
