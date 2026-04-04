@@ -31,14 +31,20 @@ interface LeadMigratoryInfoProps {
 }
 
 interface MigratoryData {
+  pais_nascimento: string | null;
   nacionalidade: string | null;
+  tempo_residencia_brasil_anos: number | null;
+  data_entrada_brasil: string | null;
   servico_interesse: string | null;
   rnm_data_emissao: string | null;
   rnm_data_vencimento: string | null;
   rnm_classificacao: string | null;
   casado_conjuge_brasileiro: boolean;
   possui_filhos_brasileiros: boolean;
+  possui_pais_brasileiros: boolean;
   pais_lingua_portuguesa: boolean;
+  possui_certificado_portugues: boolean;
+  score_qualificacao: number;
 }
 
 const SERVICO_OPTIONS = [
@@ -58,17 +64,31 @@ const PAISES_LINGUA_PORTUGUESA = [
   "Guiné-Bissau", "São Tomé e Príncipe", "Timor-Leste", "Guiné Equatorial"
 ];
 
+const TEMPO_RESIDENCIA_OPTIONS = [
+  { value: 0, label: "Menos de 1 ano" },
+  { value: 1, label: "1 ano" },
+  { value: 2, label: "2 anos" },
+  { value: 3, label: "3 anos" },
+  { value: 4, label: "4+ anos" },
+];
+
 export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState<MigratoryData>({
+    pais_nascimento: null,
     nacionalidade: null,
+    tempo_residencia_brasil_anos: null,
+    data_entrada_brasil: null,
     servico_interesse: null,
     rnm_data_emissao: null,
     rnm_data_vencimento: null,
     rnm_classificacao: null,
     casado_conjuge_brasileiro: false,
     possui_filhos_brasileiros: false,
+    possui_pais_brasileiros: false,
     pais_lingua_portuguesa: false,
+    possui_certificado_portugues: false,
+    score_qualificacao: 0,
   });
   const queryClient = useQueryClient();
 
@@ -79,7 +99,7 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
       if (!leadId) return null;
       const { data, error } = await supabase
         .from("crm_leads")
-        .select("nacionalidade, servico_interesse, rnm_data_emissao, rnm_data_vencimento, rnm_classificacao, casado_conjuge_brasileiro, possui_filhos_brasileiros, pais_lingua_portuguesa")
+        .select("pais_nascimento, nacionalidade, tempo_residencia_brasil_anos, data_entrada_brasil, servico_interesse, rnm_data_emissao, rnm_data_vencimento, rnm_classificacao, casado_conjuge_brasileiro, possui_filhos_brasileiros, possui_pais_brasileiros, pais_lingua_portuguesa, possui_certificado_portugues, score_qualificacao")
         .eq("id", leadId)
         .single();
       if (error) throw error;
@@ -91,14 +111,20 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
   useEffect(() => {
     if (leadData) {
       setFormData({
+        pais_nascimento: leadData.pais_nascimento,
         nacionalidade: leadData.nacionalidade,
+        tempo_residencia_brasil_anos: leadData.tempo_residencia_brasil_anos,
+        data_entrada_brasil: leadData.data_entrada_brasil,
         servico_interesse: leadData.servico_interesse,
         rnm_data_emissao: leadData.rnm_data_emissao,
         rnm_data_vencimento: leadData.rnm_data_vencimento,
         rnm_classificacao: leadData.rnm_classificacao,
         casado_conjuge_brasileiro: leadData.casado_conjuge_brasileiro || false,
         possui_filhos_brasileiros: leadData.possui_filhos_brasileiros || false,
+        possui_pais_brasileiros: leadData.possui_pais_brasileiros || false,
         pais_lingua_portuguesa: leadData.pais_lingua_portuguesa || false,
+        possui_certificado_portugues: leadData.possui_certificado_portugues || false,
+        score_qualificacao: leadData.score_qualificacao || 0,
       });
     }
   }, [leadData]);
@@ -185,35 +211,74 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
 
         <CollapsibleContent>
           <CardContent className="space-y-4 pt-0">
-            {/* Nacionalidade e Serviço */}
+            {/* Score de Qualificação */}
+            {formData.score_qualificacao > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                <div>
+                  <p className="text-xs text-muted-foreground">Score de Qualificação</p>
+                  <p className="text-2xl font-bold text-primary">{formData.score_qualificacao}/100</p>
+                </div>
+                <div className={`text-xs px-2 py-1 rounded ${
+                  formData.score_qualificacao >= 70 ? "bg-green-500/20 text-green-500" :
+                  formData.score_qualificacao >= 40 ? "bg-amber-500/20 text-amber-500" :
+                  "bg-red-500/20 text-red-500"
+                }`}>
+                  {formData.score_qualificacao >= 70 ? "🔥 Hot Lead" :
+                   formData.score_qualificacao >= 40 ? "👍 Qualificado" :
+                   "❄️ Frio"}
+                </div>
+              </div>
+            )}
+
+            {/* País de nascimento e Tempo de residência */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Nacionalidade</Label>
+                <Label className="text-xs">País de Nascimento</Label>
                 <Input
-                  value={formData.nacionalidade || ""}
-                  onChange={(e) => setFormData({ ...formData, nacionalidade: e.target.value })}
+                  value={formData.pais_nascimento || ""}
+                  onChange={(e) => setFormData({ ...formData, pais_nascimento: e.target.value })}
                   placeholder="Ex: Venezuela"
                   className="h-8 text-sm"
                 />
               </div>
               <div>
-                <Label className="text-xs">Serviço de Interesse</Label>
+                <Label className="text-xs">Tempo no Brasil</Label>
                 <Select
-                  value={formData.servico_interesse || ""}
-                  onValueChange={(v) => setFormData({ ...formData, servico_interesse: v })}
+                  value={formData.tempo_residencia_brasil_anos?.toString() || ""}
+                  onValueChange={(v) => setFormData({ ...formData, tempo_residencia_brasil_anos: parseInt(v) })}
                 >
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {SERVICO_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                    {TEMPO_RESIDENCIA_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value.toString()}>
                         {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Serviço de interesse */}
+            <div>
+              <Label className="text-xs">Serviço de Interesse</Label>
+              <Select
+                value={formData.servico_interesse || ""}
+                onValueChange={(v) => setFormData({ ...formData, servico_interesse: v })}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Selecione o serviço..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SERVICO_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* RNM */}
@@ -297,12 +362,32 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-muted/30">
                   <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">Possui pais brasileiros</span>
+                  </div>
+                  <Switch
+                    checked={formData.possui_pais_brasileiros}
+                    onCheckedChange={(v) => setFormData({ ...formData, possui_pais_brasileiros: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-2 rounded bg-muted/30">
+                  <div className="flex items-center gap-2">
                     <Languages className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">País de língua portuguesa</span>
                   </div>
                   <Switch
                     checked={formData.pais_lingua_portuguesa}
                     onCheckedChange={(v) => setFormData({ ...formData, pais_lingua_portuguesa: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-2 rounded bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">Certificado de Português (Celpe-Bras)</span>
+                  </div>
+                  <Switch
+                    checked={formData.possui_certificado_portugues}
+                    onCheckedChange={(v) => setFormData({ ...formData, possui_certificado_portugues: v })}
                   />
                 </div>
               </div>
