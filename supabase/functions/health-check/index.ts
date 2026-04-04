@@ -1,9 +1,43 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.85.0';
+import { encode as base64Encode, decode as base64Decode } from 'https://deno.land/std@0.208.0/encoding/base64.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Funções de criptografia AES-256-GCM
+async function getKey(secret: string): Promise<CryptoKey> {
+  const keyData = base64Decode(secret);
+  return await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function decrypt(encryptedData: string, secret: string): Promise<string> {
+  try {
+    const key = await getKey(secret);
+    const combined = base64Decode(encryptedData);
+    
+    const iv = combined.slice(0, 12);
+    const ciphertext = combined.slice(12);
+    
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      ciphertext
+    );
+    
+    return new TextDecoder().decode(decrypted);
+  } catch (e) {
+    // Se falhar a descriptografia, retorna o valor original (pode ser não criptografado)
+    return encryptedData;
+  }
+}
 
 interface HealthResult {
   component: string;
@@ -200,13 +234,12 @@ async function checkMetaWhatsApp(supabase: any): Promise<HealthResult> {
   };
 }
 
-async function checkOpenAI(supabase: any): Promise<HealthResult> {
+async function checkOpenAI(supabase: any, encryptionKey: string): Promise<HealthResult> {
   const { data: cred } = await supabase
     .from('api_credentials')
     .select('*')
     .eq('provider', 'openai')
     .eq('credential_type', 'api_key')
-    .eq('is_valid', true)
     .single();
 
   if (!cred) {
@@ -220,10 +253,13 @@ async function checkOpenAI(supabase: any): Promise<HealthResult> {
     };
   }
 
+  // Descriptografar a API key
+  const apiKey = await decrypt(cred.value_encrypted, encryptionKey);
+
   // Testar API OpenAI - listar modelos
   const { data, latency, error } = await checkWithTimeout(
     fetch('https://api.openai.com/v1/models', {
-      headers: { 'Authorization': `Bearer ${cred.value_encrypted}` },
+      headers: { 'Authorization': `Bearer ${apiKey}` },
     }).then(r => r.json()),
     10000
   );
@@ -255,6 +291,12 @@ async function checkOpenAI(supabase: any): Promise<HealthResult> {
     };
   }
 
+  // Marcar como válida
+  await supabase
+    .from('api_credentials')
+    .update({ is_valid: true, validation_error: null, last_validated_at: new Date().toISOString() })
+    .eq('id', cred.id);
+
   return {
     component: 'openai',
     status: 'healthy',
@@ -265,12 +307,11 @@ async function checkOpenAI(supabase: any): Promise<HealthResult> {
   };
 }
 
-async function checkHubSpot(supabase: any): Promise<HealthResult> {
+async function checkHubSpot(supabase: any, encryptionKey: string): Promise<HealthResult> {
   const { data: cred } = await supabase
     .from('api_credentials')
     .select('*')
     .eq('provider', 'hubspot')
-    .eq('is_valid', true)
     .single();
 
   if (!cred) {
@@ -284,10 +325,13 @@ async function checkHubSpot(supabase: any): Promise<HealthResult> {
     };
   }
 
+  // Descriptografar a API key
+  const apiKey = await decrypt(cred.value_encrypted, encryptionKey);
+
   // Testar API HubSpot - verificar token
   const { data, latency, error } = await checkWithTimeout(
     fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', {
-      headers: { 'Authorization': `Bearer ${cred.value_encrypted}` },
+      headers: { 'Authorization': `Bearer ${apiKey}` },
     }).then(r => r.json()),
     10000
   );
@@ -335,6 +379,8 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    const encryptionKey = Deno.env.get('ENCRYPTION_KEY') || '';
+
     console.log('[health-check] Starting health checks...');
 
     // Executar todas as verificações em paralelo
@@ -342,8 +388,8 @@ Deno.serve(async (req) => {
       checkSupabase(supabase),
       checkZAPI(supabase),
       checkMetaWhatsApp(supabase),
-      checkOpenAI(supabase),
-      checkHubSpot(supabase),
+      checkOpenAI(supabase, encryptionKey),
+      checkHubSpot(supabase, encryptionKey),
     ]);
 
     const now = new Date().toISOString();
