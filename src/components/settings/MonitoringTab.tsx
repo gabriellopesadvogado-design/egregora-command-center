@@ -307,10 +307,12 @@ export function MonitoringTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Uptime Geral</p>
-                <p className="text-2xl font-bold text-green-500">99.8%</p>
+                <p className={`text-2xl font-bold ${totalCount > 0 && healthyCount === totalCount ? 'text-green-500' : healthyCount > 0 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {totalCount > 0 ? Math.round((healthyCount / totalCount) * 100) : 0}%
+                </p>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
-                <TrendingUp className="h-6 w-6 text-green-500" />
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${totalCount > 0 && healthyCount === totalCount ? 'bg-green-500/20' : 'bg-yellow-500/20'}`}>
+                <TrendingUp className={`h-6 w-6 ${totalCount > 0 && healthyCount === totalCount ? 'text-green-500' : 'text-yellow-500'}`} />
               </div>
             </div>
           </CardContent>
