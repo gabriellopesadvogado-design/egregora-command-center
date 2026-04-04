@@ -23,7 +23,7 @@ type DateRange = "7d" | "30d" | "90d" | "all";
 interface AttributionMetrics {
   totalLeads: number;
   qualifiedLeads: number;
-  proposals: number;
+  proposals: number; // SQLs
   closedWon: number;
   closedLost: number;
   totalRevenue: number;
@@ -31,6 +31,7 @@ interface AttributionMetrics {
   avgDaysToClose: number;
   conversionRate: number;
   cpl: number;
+  csql: number; // Custo por SQL
   cac: number;
   roas: number;
 }
@@ -101,10 +102,18 @@ export default function Atribuicao() {
       const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : dateRange === "90d" ? 90 : 365;
       totalAdSpend = 150 * days; // TODO: Buscar via meta-api
 
+      // SQL = chegou em "Proposta Enviada" (conforme configuração HubSpot)
+      const sqls = leads.filter(l => 
+        l.deal_stage === "Proposta Enviada" || 
+        l.deal_stage === "Follow Up Ativo" || 
+        l.deal_stage === "Contrato Enviado" || 
+        l.is_won
+      );
+
       return {
         totalLeads: leads.length,
         qualifiedLeads: qualified.length,
-        proposals: proposals.length,
+        proposals: sqls.length,
         closedWon: closedWon.length,
         closedLost: closedLost.length,
         totalRevenue,
@@ -112,6 +121,7 @@ export default function Atribuicao() {
         avgDaysToClose: Math.round(avgDays),
         conversionRate: leads.length ? (closedWon.length / leads.length) * 100 : 0,
         cpl: leads.length ? totalAdSpend / leads.length : 0,
+        csql: sqls.length ? totalAdSpend / sqls.length : 0,
         cac: closedWon.length ? totalAdSpend / closedWon.length : 0,
         roas: totalAdSpend ? totalRevenue / totalAdSpend : 0,
       };
@@ -141,7 +151,12 @@ export default function Atribuicao() {
 
       return Object.entries(byCampaign).map(([campaign, leads]) => {
         const qualified = leads.filter(l => l.qualified_at).length;
-        const proposals = leads.filter(l => l.deal_stage?.includes("Proposta")).length;
+        const sqls = leads.filter(l => 
+          l.deal_stage === "Proposta Enviada" || 
+          l.deal_stage === "Follow Up Ativo" ||
+          l.deal_stage === "Contrato Enviado" || 
+          l.is_won
+        ).length;
         const closed = leads.filter(l => l.is_won).length;
         const revenue = leads.filter(l => l.is_won).reduce((sum, l) => sum + (l.deal_value || 0), 0);
         const daysArr = leads.filter(l => l.days_to_close).map(l => l.days_to_close!);
@@ -154,11 +169,12 @@ export default function Atribuicao() {
           campaign,
           leads: leads.length,
           qualified,
-          proposals,
+          proposals: sqls,
           closed,
           revenue,
           spend,
           cpl: leads.length ? spend / leads.length : 0,
+          csql: sqls ? spend / sqls : 0,
           cac: closed ? spend / closed : 0,
           roas: spend ? revenue / spend : 0,
           avgDays,
@@ -267,20 +283,31 @@ export default function Atribuicao() {
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <KPICard
               title="CPL (Custo por Lead)"
               value={fmt(metrics.cpl)}
+              subtitle={`${metrics.totalLeads} leads totais`}
               icon={BarChart3}
             />
             <KPICard
-              title="CAC (Custo de Aquisição)"
+              title="Custo por SQL"
+              value={fmt(metrics.csql)}
+              subtitle={`${metrics.proposals} SQLs (proposta+)`}
+              icon={Target}
+              trend={metrics.csql < 500 ? "Saudável" : metrics.csql < 1000 ? "Atenção" : "Alto"}
+              trendUp={metrics.csql < 500}
+            />
+            <KPICard
+              title="CAC (Custo por Cliente)"
               value={fmt(metrics.cac)}
+              subtitle={`${metrics.closedWon} clientes`}
               icon={DollarSign}
             />
             <KPICard
               title="Tempo Médio de Fechamento"
               value={`${metrics.avgDaysToClose} dias`}
+              subtitle="Lead → Contrato"
               icon={Clock}
             />
           </div>

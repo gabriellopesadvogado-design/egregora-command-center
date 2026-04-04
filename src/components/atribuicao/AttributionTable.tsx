@@ -12,10 +12,12 @@ interface CampaignData {
   campaign: string;
   leads: number;
   qualified: number;
+  proposals: number;
   closed: number;
   revenue: number;
   spend: number;
   cpl: number;
+  csql: number;
   cac: number;
   roas: number;
   avgDays: number;
@@ -47,7 +49,8 @@ export function AttributionTable({ data }: AttributionTableProps) {
           <TableRow className="border-border/50">
             <TableHead className="text-xs">Campanha</TableHead>
             <TableHead className="text-xs text-right">Leads</TableHead>
-            <TableHead className="text-xs text-right">Fechados</TableHead>
+            <TableHead className="text-xs text-right">SQLs</TableHead>
+            <TableHead className="text-xs text-right">C/SQL</TableHead>
             <TableHead className="text-xs text-right">CAC</TableHead>
             <TableHead className="text-xs text-right">ROAS</TableHead>
           </TableRow>
@@ -55,11 +58,12 @@ export function AttributionTable({ data }: AttributionTableProps) {
         <TableBody>
           {data.slice(0, 8).map((row) => (
             <TableRow key={row.campaign} className="border-border/50">
-              <TableCell className="text-xs font-medium max-w-[120px] truncate" title={row.campaign}>
+              <TableCell className="text-xs font-medium max-w-[100px] truncate" title={row.campaign}>
                 {row.campaign}
               </TableCell>
               <TableCell className="text-xs text-right">{row.leads}</TableCell>
-              <TableCell className="text-xs text-right">{row.closed}</TableCell>
+              <TableCell className="text-xs text-right">{row.proposals}</TableCell>
+              <TableCell className="text-xs text-right">{fmt(row.csql)}</TableCell>
               <TableCell className="text-xs text-right">{fmt(row.cac)}</TableCell>
               <TableCell className="text-xs text-right">
                 <Badge 
