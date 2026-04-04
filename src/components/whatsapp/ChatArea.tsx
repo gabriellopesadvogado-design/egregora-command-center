@@ -6,6 +6,8 @@ import { ChatHeader } from "./ChatHeader";
 import { MessagesContainer } from "./MessagesContainer";
 import { MessageInputContainer, MediaSendParams } from "./input";
 import { PendingTransferBanner } from "./PendingTransferBanner";
+import { LeadMigratoryInfo } from "./LeadMigratoryInfo";
+import { useContactPipeline } from "@/hooks/useContactPipeline";
 import { MessageCircle } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 
@@ -46,6 +48,9 @@ export const ChatArea = ({ conversationId }: ChatAreaProps) => {
     staleTime: 0, // Sempre considerar dados como stale
     refetchOnMount: true,
   });
+
+  // Buscar dados do pipeline para pegar lead_id
+  const { data: pipelineData } = useContactPipeline(conversation?.contact?.id);
 
   const handleRefresh = async () => {
     if (!conversationId) return;
@@ -114,6 +119,16 @@ export const ChatArea = ({ conversationId }: ChatAreaProps) => {
       />
       
       <PendingTransferBanner conversationId={conversationId} />
+      
+      {/* Informações Migratórias - colapsável */}
+      {conversation?.contact && (
+        <div className="px-4 py-2 border-b border-border bg-card/50">
+          <LeadMigratoryInfo 
+            leadId={pipelineData?.lead_id || null} 
+            contactId={conversation.contact.id}
+          />
+        </div>
+      )}
       
       <MessagesContainer 
         messages={messages} 
