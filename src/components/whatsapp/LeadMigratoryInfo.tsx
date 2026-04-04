@@ -60,17 +60,7 @@ const RNM_OPTIONS = [
   { value: "nao_possui", label: "Não Possui RNM" },
 ];
 
-const CAMPANHA_OPTIONS = [
-  { value: "Meta_Leadads_Principal", label: "Meta - Leadads Principal" },
-  { value: "Meta_Escala", label: "Meta - Campanha Escala" },
-  { value: "Meta_Nova_Leads", label: "Meta - Nova Leads" },
-  { value: "Google_Search", label: "Google - Search" },
-  { value: "Google_Display", label: "Google - Display" },
-  { value: "Organico_Site", label: "Orgânico - Site" },
-  { value: "Organico_Instagram", label: "Orgânico - Instagram" },
-  { value: "Indicacao", label: "Indicação" },
-  { value: "Outro", label: "Outro" },
-];
+
 
 const PAISES_LINGUA_PORTUGUESA = [
   "Brasil", "Portugal", "Angola", "Moçambique", "Cabo Verde", 
@@ -226,32 +216,17 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
 
         <CollapsibleContent>
           <CardContent className="space-y-4 pt-0">
-            {/* Campanha de Origem - IMPORTANTE PARA ATRIBUIÇÃO */}
-            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <Label className="text-xs text-blue-400 flex items-center gap-1 mb-2">
-                📊 Campanha de Origem (Atribuição)
-              </Label>
-              <Select
-                value={formData.campanha || ""}
-                onValueChange={(v) => setFormData({ ...formData, campanha: v })}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Selecione a campanha..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {CAMPANHA_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!formData.campanha && (
-                <p className="text-[10px] text-amber-400 mt-1">
-                  ⚠️ Sem campanha = não aparece no dashboard de tráfego
+            {/* Campanha de Origem - Automático do HubSpot */}
+            {formData.campanha && (
+              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <Label className="text-xs text-blue-400 flex items-center gap-1 mb-1">
+                  📊 Campanha de Origem
+                </Label>
+                <p className="text-sm font-medium">
+                  {formData.campanha.replace(/_/g, " ")}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Score de Qualificação */}
             {formData.score_qualificacao > 0 && (
