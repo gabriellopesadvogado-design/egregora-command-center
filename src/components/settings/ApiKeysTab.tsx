@@ -472,23 +472,38 @@ function AddCredentialModal({ onClose }: { onClose: () => void }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { data: user } = await supabase.auth.getUser();
-      const { error } = await supabase.from("api_credentials").insert({
-        provider,
-        credential_type: credentialType,
-        label: label || `${provider} - ${credentialType}`,
-        value_encrypted: value, // Em produção, criptografar antes de salvar
-        created_by: user.user?.id,
-      });
-      if (error) throw error;
+      // Usar Edge Function para criptografar e salvar
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL || 'https://zxwkjogjbyywufertkor.supabase.co'}/functions/v1/manage-credential`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'save',
+            provider,
+            credential_type: credentialType,
+            label: label || `${provider} - ${credentialType}`,
+            value,
+          }),
+        }
+      );
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao salvar credencial');
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api_credentials"] });
-      toast.success("Credencial adicionada");
+      toast.success("Credencial adicionada com criptografia");
       onClose();
     },
-    onError: (error) => {
-      toast.error("Erro ao adicionar credencial");
+    onError: (error: any) => {
+      toast.error(error.message || "Erro ao adicionar credencial");
       console.error(error);
     },
   });
