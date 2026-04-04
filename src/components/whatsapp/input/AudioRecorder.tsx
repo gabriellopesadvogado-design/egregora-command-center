@@ -31,14 +31,36 @@ export const AudioRecorder = ({ onSend, onCancel }: AudioRecorderProps) => {
     };
   }, [audioUrl]);
 
+  // Detecta o melhor formato suportado pelo browser e aceito pela Meta API
+  const getSupportedMimeType = (): string => {
+    // Formatos aceitos pela Meta API (em ordem de preferência)
+    const preferredTypes = [
+      'audio/mp4',           // Chrome/Safari — AAC — aceito pelo Meta ✅
+      'audio/ogg;codecs=opus', // Firefox — Opus em OGG — aceito pelo Meta ✅
+      'audio/ogg',           // Firefox fallback
+      'audio/mpeg',          // MP3 — aceito pelo Meta ✅
+    ];
+
+    for (const type of preferredTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log('[AudioRecorder] Using format:', type);
+        return type;
+      }
+    }
+
+    // Fallback — webm (pode falhar no Meta, mas funciona no Z-API)
+    console.warn('[AudioRecorder] No preferred format supported, falling back to webm');
+    return 'audio/webm;codecs=opus';
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      const mimeType = getSupportedMimeType();
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -80,7 +102,8 @@ export const AudioRecorder = ({ onSend, onCancel }: AudioRecorderProps) => {
     if (!mediaRecorderRef.current || !isRecording) return;
 
     mediaRecorderRef.current.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+      const mimeType = mediaRecorderRef.current?.mimeType || 'audio/mp4';
+      const blob = new Blob(chunksRef.current, { type: mimeType });
       setAudioBlob(blob);
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
@@ -110,10 +133,12 @@ export const AudioRecorder = ({ onSend, onCancel }: AudioRecorderProps) => {
     reader.readAsDataURL(audioBlob);
     reader.onloadend = () => {
       const base64 = reader.result as string;
+      // Usa o mime type real do blob (mp4, ogg, etc.) — não força webm
+      const mimeType = audioBlob.type || 'audio/mp4';
       onSend({
         messageType: 'audio',
         mediaBase64: base64,
-        mediaMimetype: 'audio/webm',
+        mediaMimetype: mimeType,
       });
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);

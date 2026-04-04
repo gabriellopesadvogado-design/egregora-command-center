@@ -146,7 +146,7 @@ export const MessageBubble = ({ message, reactions = [], onReply }: MessageBubbl
           <div className="space-y-2">
             {message.media_url && (
               <audio controls className="max-w-xs">
-                <source src={message.media_url} type={message.media_mimetype || 'audio/ogg'} />
+                <source src={message.media_url} type={(message as any).media_mime_type || (message as any).media_mimetype || 'audio/ogg'} />
               </audio>
             )}
           </div>
@@ -157,7 +157,7 @@ export const MessageBubble = ({ message, reactions = [], onReply }: MessageBubbl
           <div className="space-y-2">
             {message.media_url && (
               <video controls className="max-w-xs rounded-md">
-                <source src={message.media_url} type={message.media_mimetype || 'video/mp4'} />
+                <source src={message.media_url} type={(message as any).media_mime_type || (message as any).media_mimetype || 'video/mp4'} />
               </video>
             )}
             {message.content && <p className="text-sm">{message.content}</p>}
