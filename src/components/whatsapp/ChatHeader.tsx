@@ -149,7 +149,7 @@ export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, convers
             <ChatHeaderMenu conversation={conversation} onRefresh={onRefresh} />
           )}
 
-          <Link to="/whatsapp/settings">
+          <Link to="/settings">
             <Button variant="ghost" size="icon">
               <Settings className="h-5 w-5" />
             </Button>
