@@ -31,6 +31,14 @@ interface WebhookPayload {
   email?: string;
   hubspot_contact_id?: string;
   sdr_hubspot_owner_id?: number;
+  // UTM fields
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  gclid?: string;
+  fbclid?: string;
 }
 
 function normalizePhone(phone: string): string {
@@ -68,6 +76,15 @@ Deno.serve(async (req) => {
     let email = '';
     let hubspotContactId = '';
     let sdrHubspotOwnerId: number | null = null;
+    
+    // UTM / Attribution data
+    let utmSource = payload.utm_source || '';
+    let utmMedium = payload.utm_medium || '';
+    let utmCampaign = payload.utm_campaign || '';
+    let utmContent = payload.utm_content || '';
+    let utmTerm = payload.utm_term || '';
+    let gclid = payload.gclid || '';
+    let fbclid = payload.fbclid || '';
 
     // Formato manual/teste
     if (payload.phone) {
@@ -203,6 +220,14 @@ Deno.serve(async (req) => {
         status: 'waiting',
         wait_until: waitUntil.toISOString(),
         source: 'hubspot',
+        // Attribution data
+        utm_source: utmSource || null,
+        utm_medium: utmMedium || null,
+        utm_campaign: utmCampaign || null,
+        // Extrair campaign_id e ad_id do utm_content se possível
+        // Formato esperado: "ad_123456" ou apenas o conteúdo
+        campaign_id: utmCampaign || null,
+        ad_id: utmContent || null,
       })
       .select('id')
       .single();

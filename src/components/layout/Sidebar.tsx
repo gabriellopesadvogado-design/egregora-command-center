@@ -53,6 +53,7 @@ const menuItems = [
     section: "Tráfego Pago",
     items: [
       { name: "Dashboard Ads", href: "/trafego", icon: BarChart3 },
+      { name: "Atribuição", href: "/atribuicao", icon: Target },
       { name: "ROI por Canal", href: "/roi", icon: DollarSign },
     ]
   },

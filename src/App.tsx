@@ -26,6 +26,7 @@ import Targets from "./pages/Targets";
 import WbrAi from "./pages/WbrAi";
 import Roi from "./pages/Roi";
 import Trafego from "./pages/Trafego";
+import Atribuicao from "./pages/Atribuicao";
 import Conversas from "./pages/Conversas";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
@@ -87,6 +88,7 @@ const App = () => (
             
             {/* Tráfego */}
             <Route path="trafego" element={<Trafego />} />
+            <Route path="atribuicao" element={<Atribuicao />} />
             <Route path="roi" element={<Roi />} />
             
             {/* Conversas */}
