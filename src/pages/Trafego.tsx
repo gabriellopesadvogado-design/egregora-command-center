@@ -120,7 +120,7 @@ export default function Trafego() {
             {isSpendLoading ? (
               <div className="h-64 bg-muted rounded animate-pulse" />
             ) : (
-              <SpendDistributionChart data={dailySpendData} />
+              <SpendDistributionChart data={campaignData || []} />
             )}
           </CardContent>
         </Card>

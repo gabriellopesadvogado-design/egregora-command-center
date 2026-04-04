@@ -28,16 +28,19 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // Decode JWT to get user_id without extra network call
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } =
-      await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    let userId: string;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      userId = payload.sub;
+      if (!userId) throw new Error("No sub");
+    } catch {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: corsHeaders,
       });
     }
-    const userId = claimsData.claims.sub as string;
 
     const { endpoint, params, method, body } = await req.json();
 

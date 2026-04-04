@@ -61,7 +61,7 @@ export function TrendChart({ data, isLoading }: TrendChartProps) {
     );
   }
 
-  if (!data.length) {
+  if (!data?.length) {
     return (
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader><CardTitle className="text-lg">Tendência — Investimento vs Cliques vs CPM vs CTR</CardTitle></CardHeader>

@@ -34,12 +34,12 @@ export function SpendDistributionChart({ data, isLoading }: SpendDistributionCha
     );
   }
 
-  const sorted = [...data].sort((a, b) => b.spend - a.spend);
+  const sorted = [...(data || [])].sort((a, b) => b.spend - a.spend);
   const top5 = sorted.slice(0, 5);
   const othersSpend = sorted.slice(5).reduce((sum, c) => sum + c.spend, 0);
 
   const chartData = [
-    ...top5.map(c => ({ name: c.name.length > 20 ? c.name.slice(0, 20) + '…' : c.name, value: c.spend })),
+    ...top5.map(c => ({ name: (c.name || '').length > 20 ? (c.name || '').slice(0, 20) + '…' : (c.name || '—'), value: c.spend ?? 0 })),
     ...(othersSpend > 0 ? [{ name: 'Outros', value: othersSpend }] : []),
   ];
 

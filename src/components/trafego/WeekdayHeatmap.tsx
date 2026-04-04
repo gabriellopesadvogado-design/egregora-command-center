@@ -41,7 +41,7 @@ export function WeekdayHeatmap({ data, isLoading }: WeekdayHeatmapProps) {
     );
   }
 
-  if (!data.length) {
+  if (!data?.length) {
     return (
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader><CardTitle className="text-lg">Performance por Dia da Semana</CardTitle></CardHeader>

@@ -46,7 +46,7 @@ export function DailySpendChart({ data, isLoading }: DailySpendChartProps) {
     );
   }
 
-  if (!data.length) {
+  if (!data?.length) {
     return (
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader><CardTitle className="text-lg">Gasto Diário — Meta Ads</CardTitle></CardHeader>

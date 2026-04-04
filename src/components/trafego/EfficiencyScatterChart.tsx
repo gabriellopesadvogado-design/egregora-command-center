@@ -27,14 +27,14 @@ export function EfficiencyScatterChart({ data, isLoading }: EfficiencyScatterCha
     );
   }
 
-  const chartData = data.filter(c => c.cpc > 0 && c.ctr > 0).map(c => ({
+  const chartData = (data || []).filter(c => c.cpc > 0 && c.ctr > 0).map(c => ({
     name: c.name,
     cpc: Number(c.cpc.toFixed(2)),
     ctr: Number(c.ctr.toFixed(2)),
     spend: c.spend,
   }));
 
-  if (!chartData.length) {
+  if (!chartData?.length) {
     return (
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader><CardTitle className="text-lg">Eficiência por Campanha</CardTitle></CardHeader>
