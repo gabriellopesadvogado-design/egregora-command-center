@@ -28,6 +28,7 @@ import Roi from "./pages/Roi";
 import Trafego from "./pages/Trafego";
 import Atribuicao from "./pages/Atribuicao";
 import Conversas from "./pages/Conversas";
+import GestorComercialIA from "./pages/GestorComercialIA";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 import Notificacoes from "./pages/Notificacoes";
@@ -96,6 +97,7 @@ const App = () => (
             
             {/* IA & Reports */}
             <Route path="wbr-ai" element={<WbrAi />} />
+            <Route path="gestor-ia" element={<GestorComercialIA />} />
             
             {/* Configurações */}
             <Route path="settings" element={<Settings />} />

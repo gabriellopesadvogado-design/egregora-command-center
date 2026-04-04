@@ -24,6 +24,7 @@ import {
   LogOut,
   MessageSquare,
   BarChart3,
+  Bot,
 } from "lucide-react";
 
 const menuItems = [
@@ -66,6 +67,7 @@ const menuItems = [
   {
     section: "IA & Reports",
     items: [
+      { name: "Gestor Comercial IA", href: "/gestor-ia", icon: Bot },
       { name: "Relatórios IA", href: "/wbr-ai", icon: Sparkles },
     ]
   },
