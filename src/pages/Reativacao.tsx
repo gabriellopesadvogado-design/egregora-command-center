@@ -1,133 +1,198 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { 
-  AlertTriangle, 
-  Clock, 
-  Users, 
+  Flame,
+  ThumbsUp,
+  Snowflake,
+  HelpCircle,
   Phone, 
-  Calendar,
-  TrendingUp,
-  Filter,
+  MessageSquare,
   Download,
-  MessageSquare
+  Users,
+  Target,
+  TrendingUp,
+  CheckCircle,
+  Globe
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-interface LeadReativacao {
+interface LeadPerdido {
   id: string;
   nome: string;
   telefone: string;
   whatsapp: string;
   email: string;
   pais_nascimento: string;
+  nacionalidade: string;
+  tempo_residencia_brasil_anos: number;
   rnm_classificacao: string;
   rnm_data_vencimento: string;
   servico_interesse: string;
+  casado_conjuge_brasileiro: boolean;
+  possui_filhos_brasileiros: boolean;
+  possui_pais_brasileiros: boolean;
+  pais_lingua_portuguesa: boolean;
+  possui_certificado_portugues: boolean;
   score_qualificacao: number;
   pipeline_status: string;
-  dias_para_vencimento: number;
-  status_rnm: string;
-  elegivel_reativacao: boolean;
+  avaliacao_reuniao: string;
+  data_fechamento: string;
+  motivo_perda: string;
+  categoria_lead: string;
+  elegivel_naturalizacao: boolean;
 }
 
-const STATUS_RNM_CONFIG: Record<string, { label: string; color: string; icon: typeof AlertTriangle }> = {
-  vencido: { label: "RNM Vencido", color: "bg-red-500/20 text-red-500 border-red-500/30", icon: AlertTriangle },
-  vence_30_dias: { label: "Vence em 30 dias", color: "bg-orange-500/20 text-orange-500 border-orange-500/30", icon: Clock },
-  vence_90_dias: { label: "Vence em 90 dias", color: "bg-amber-500/20 text-amber-500 border-amber-500/30", icon: Clock },
-  vence_180_dias: { label: "Vence em 180 dias", color: "bg-yellow-500/20 text-yellow-500 border-yellow-500/30", icon: Calendar },
-  ok: { label: "RNM OK", color: "bg-green-500/20 text-green-500 border-green-500/30", icon: TrendingUp },
-  sem_rnm: { label: "Sem RNM", color: "bg-muted text-muted-foreground", icon: Users },
-};
-
 export default function Reativacao() {
-  const [activeTab, setActiveTab] = useState("rnm_vencendo");
+  const [activeTab, setActiveTab] = useState("hot");
 
-  const { data: leadsReativacao, isLoading } = useQuery({
-    queryKey: ["leads-reativacao"],
+  const { data: leadsPerdidos, isLoading } = useQuery({
+    queryKey: ["leads-perdidos-qualificados"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("leads_reativacao")
+        .from("leads_perdidos_qualificados")
         .select("*")
-        .order("dias_para_vencimento", { ascending: true });
+        .order("score_qualificacao", { ascending: false });
       if (error) throw error;
-      return data as LeadReativacao[];
+      return data as LeadPerdido[];
     },
   });
 
-  // Agrupar por status
-  const rnmVencido = leadsReativacao?.filter(l => l.status_rnm === "vencido") || [];
-  const rnmVence30 = leadsReativacao?.filter(l => l.status_rnm === "vence_30_dias") || [];
-  const rnmVence90 = leadsReativacao?.filter(l => l.status_rnm === "vence_90_dias") || [];
-  const rnmVence180 = leadsReativacao?.filter(l => l.status_rnm === "vence_180_dias") || [];
-  const perdidos = leadsReativacao?.filter(l => l.elegivel_reativacao) || [];
+  // Agrupar por categoria
+  const hot = leadsPerdidos?.filter(l => l.categoria_lead === "hot") || [];
+  const qualificado = leadsPerdidos?.filter(l => l.categoria_lead === "qualificado") || [];
+  const frio = leadsPerdidos?.filter(l => l.categoria_lead === "frio") || [];
+  const naoQualificado = leadsPerdidos?.filter(l => l.categoria_lead === "nao_qualificado") || [];
+  const elegivelNaturalizacao = leadsPerdidos?.filter(l => l.elegivel_naturalizacao) || [];
 
-  const getScoreBadge = (score: number) => {
-    if (score >= 70) return <Badge className="bg-green-500/20 text-green-500">🔥 {score}</Badge>;
-    if (score >= 40) return <Badge className="bg-amber-500/20 text-amber-500">👍 {score}</Badge>;
-    return <Badge className="bg-muted text-muted-foreground">❄️ {score}</Badge>;
+  const total = leadsPerdidos?.length || 0;
+
+  const getConditionsIcons = (lead: LeadPerdido) => {
+    const conditions = [];
+    if (lead.casado_conjuge_brasileiro) conditions.push({ icon: "💍", label: "Cônjuge BR" });
+    if (lead.possui_filhos_brasileiros) conditions.push({ icon: "👶", label: "Filhos BR" });
+    if (lead.possui_pais_brasileiros) conditions.push({ icon: "👨‍👩‍👧", label: "Pais BR" });
+    if (lead.pais_lingua_portuguesa) conditions.push({ icon: "🇧🇷", label: "Lusófono" });
+    if (lead.possui_certificado_portugues) conditions.push({ icon: "📜", label: "Celpe-Bras" });
+    return conditions;
   };
 
   const formatPhone = (phone: string) => {
     if (!phone) return "-";
-    return phone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, "+$1 ($2) $3-$4");
+    const clean = phone.replace(/\D/g, "");
+    if (clean.length === 13) {
+      return `+${clean.slice(0,2)} (${clean.slice(2,4)}) ${clean.slice(4,9)}-${clean.slice(9)}`;
+    }
+    return phone;
   };
 
-  const LeadTable = ({ leads, showRnm = true }: { leads: LeadReativacao[]; showRnm?: boolean }) => (
+  const getRnmBadge = (rnm: string) => {
+    switch(rnm) {
+      case "indeterminado":
+        return <Badge className="bg-green-500/20 text-green-500 text-xs">Indeterminado</Badge>;
+      case "temporario":
+        return <Badge className="bg-amber-500/20 text-amber-500 text-xs">Temporário</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">Sem RNM</Badge>;
+    }
+  };
+
+  const getTempoLabel = (anos: number | null) => {
+    if (!anos && anos !== 0) return "-";
+    if (anos >= 4) return `${anos} anos ✓`;
+    return `${anos} ano${anos !== 1 ? "s" : ""}`;
+  };
+
+  const LeadTable = ({ leads }: { leads: LeadPerdido[] }) => (
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-[50px]">Score</TableHead>
           <TableHead>Nome</TableHead>
           <TableHead>País</TableHead>
+          <TableHead>Tempo BR</TableHead>
+          <TableHead>RNM</TableHead>
+          <TableHead>Condições</TableHead>
           <TableHead>Telefone</TableHead>
-          {showRnm && <TableHead>RNM Vence</TableHead>}
-          <TableHead>Score</TableHead>
-          <TableHead>Ações</TableHead>
+          <TableHead className="w-[100px]">Ações</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {leads.map((lead) => (
-          <TableRow key={lead.id}>
-            <TableCell className="font-medium">{lead.nome}</TableCell>
-            <TableCell>{lead.pais_nascimento || "-"}</TableCell>
-            <TableCell className="text-sm">{formatPhone(lead.whatsapp || lead.telefone)}</TableCell>
-            {showRnm && (
+        {leads.map((lead) => {
+          const conditions = getConditionsIcons(lead);
+          return (
+            <TableRow key={lead.id} className={lead.elegivel_naturalizacao ? "bg-green-500/5" : ""}>
               <TableCell>
-                {lead.rnm_data_vencimento ? (
-                  <div className="text-sm">
-                    <p>{format(parseISO(lead.rnm_data_vencimento), "dd/MM/yyyy", { locale: ptBR })}</p>
-                    <p className={`text-xs ${lead.dias_para_vencimento < 0 ? "text-red-500" : lead.dias_para_vencimento < 30 ? "text-orange-500" : "text-muted-foreground"}`}>
-                      {lead.dias_para_vencimento < 0 
-                        ? `Vencido há ${Math.abs(lead.dias_para_vencimento)} dias`
-                        : `Em ${lead.dias_para_vencimento} dias`}
-                    </p>
-                  </div>
-                ) : "-"}
+                <div className="flex items-center gap-1">
+                  <span className={`text-lg font-bold ${
+                    lead.score_qualificacao >= 70 ? "text-green-500" :
+                    lead.score_qualificacao >= 40 ? "text-amber-500" :
+                    lead.score_qualificacao > 0 ? "text-blue-500" : "text-muted-foreground"
+                  }`}>
+                    {lead.score_qualificacao}
+                  </span>
+                </div>
               </TableCell>
-            )}
-            <TableCell>{getScoreBadge(lead.score_qualificacao || 0)}</TableCell>
-            <TableCell>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="icon" title="Enviar WhatsApp">
-                  <MessageSquare className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" title="Ligar">
-                  <Phone className="w-4 h-4" />
-                </Button>
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
+              <TableCell>
+                <div>
+                  <p className="font-medium">{lead.nome}</p>
+                  {lead.elegivel_naturalizacao && (
+                    <Badge className="bg-green-500/20 text-green-500 text-[10px] mt-1">
+                      ✓ Elegível Naturalização
+                    </Badge>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-sm">{lead.pais_nascimento || lead.nacionalidade || "-"}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <span className={`text-sm ${lead.tempo_residencia_brasil_anos >= 4 ? "text-green-500 font-medium" : ""}`}>
+                  {getTempoLabel(lead.tempo_residencia_brasil_anos)}
+                </span>
+              </TableCell>
+              <TableCell>{getRnmBadge(lead.rnm_classificacao)}</TableCell>
+              <TableCell>
+                <div className="flex gap-1">
+                  {conditions.length > 0 ? (
+                    conditions.map((c, i) => (
+                      <span key={i} title={c.label} className="text-sm cursor-help">
+                        {c.icon}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground text-xs">-</span>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className="text-sm">{formatPhone(lead.whatsapp || lead.telefone)}</TableCell>
+              <TableCell>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Enviar WhatsApp">
+                    <MessageSquare className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Ligar">
+                    <Phone className="w-4 h-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          );
+        })}
         {leads.length === 0 && (
           <TableRow>
-            <TableCell colSpan={showRnm ? 6 : 5} className="text-center text-muted-foreground py-8">
+            <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
               Nenhum lead encontrado nesta categoria
             </TableCell>
           </TableRow>
@@ -140,132 +205,160 @@ export default function Reativacao() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reativação</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Reativação de Leads</h1>
           <p className="text-muted-foreground">
-            Leads para campanhas de reativação baseado em RNM e histórico
+            {total.toLocaleString()} leads perdidos • Ordenados por qualificação
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            Filtrar
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
-          </Button>
-        </div>
+        <Button variant="outline" size="sm">
+          <Download className="w-4 h-4 mr-2" />
+          Exportar Lista
+        </Button>
       </div>
 
       {/* Cards de resumo */}
       <div className="grid gap-4 md:grid-cols-5">
-        <Card className="border-red-500/30 bg-red-500/5">
+        <Card className="border-green-500/30 bg-gradient-to-br from-green-500/10 to-green-500/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-red-500 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              RNM Vencido
+            <CardTitle className="text-sm text-green-500 flex items-center gap-2">
+              <Flame className="w-4 h-4" />
+              Hot Leads (70+)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{rnmVencido.length}</p>
-            <p className="text-xs text-muted-foreground">Urgente</p>
+            <p className="text-3xl font-bold text-green-500">{hot.length}</p>
+            <p className="text-xs text-muted-foreground">Prioridade máxima</p>
+            <Progress value={(hot.length / Math.max(total, 1)) * 100} className="h-1 mt-2" />
           </CardContent>
         </Card>
 
-        <Card className="border-orange-500/30 bg-orange-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-orange-500 flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Vence 30 dias
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{rnmVence30.length}</p>
-            <p className="text-xs text-muted-foreground">Prioridade alta</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-500/30 bg-amber-500/5">
+        <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-amber-500/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-amber-500 flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Vence 90 dias
+              <ThumbsUp className="w-4 h-4" />
+              Qualificados (40-69)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{rnmVence90.length}</p>
-            <p className="text-xs text-muted-foreground">Campanha</p>
+            <p className="text-3xl font-bold text-amber-500">{qualificado.length}</p>
+            <p className="text-xs text-muted-foreground">Bom potencial</p>
+            <Progress value={(qualificado.length / Math.max(total, 1)) * 100} className="h-1 mt-2" />
           </CardContent>
         </Card>
 
-        <Card className="border-yellow-500/30 bg-yellow-500/5">
+        <Card className="border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-blue-500/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-yellow-500 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Vence 180 dias
+            <CardTitle className="text-sm text-blue-500 flex items-center gap-2">
+              <Snowflake className="w-4 h-4" />
+              Frios (1-39)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{rnmVence180.length}</p>
-            <p className="text-xs text-muted-foreground">Nurturing</p>
+            <p className="text-3xl font-bold text-blue-500">{frio.length}</p>
+            <p className="text-xs text-muted-foreground">Baixa prioridade</p>
+            <Progress value={(frio.length / Math.max(total, 1)) * 100} className="h-1 mt-2" />
           </CardContent>
         </Card>
 
-        <Card className="border-purple-500/30 bg-purple-500/5">
+        <Card className="border-muted bg-muted/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-purple-500 flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Perdidos (90d+)
+            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+              <HelpCircle className="w-4 h-4" />
+              Não Qualificados
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{perdidos.length}</p>
-            <p className="text-xs text-muted-foreground">Reativação</p>
+            <p className="text-3xl font-bold text-muted-foreground">{naoQualificado.length}</p>
+            <p className="text-xs text-muted-foreground">Sem dados coletados</p>
+            <Progress value={(naoQualificado.length / Math.max(total, 1)) * 100} className="h-1 mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-primary flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Elegíveis Naturalização
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-primary">{elegivelNaturalizacao.length}</p>
+            <p className="text-xs text-muted-foreground">4+ anos + RNM indet.</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Insight Card */}
+      {hot.length > 0 && (
+        <Card className="border-green-500/30 bg-gradient-to-r from-green-500/10 to-transparent">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-green-500/20">
+                <Target className="w-6 h-6 text-green-500" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">
+                  🎯 Você tem <span className="text-green-500 font-bold">{hot.length} leads hot</span> perdidos prontos para reativação!
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Esses leads já têm os requisitos para naturalização. Campanha de reativação pode ter alta conversão.
+                </p>
+              </div>
+              <Button className="bg-green-500 hover:bg-green-600">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Iniciar Campanha
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs com listas */}
       <Card>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <CardHeader>
+          <CardHeader className="pb-0">
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="rnm_vencido" className="text-xs">
-                🔴 Vencido ({rnmVencido.length})
+              <TabsTrigger value="hot" className="text-xs gap-1">
+                <Flame className="w-3 h-3" />
+                Hot ({hot.length})
               </TabsTrigger>
-              <TabsTrigger value="rnm_30" className="text-xs">
-                🟠 30 dias ({rnmVence30.length})
+              <TabsTrigger value="qualificado" className="text-xs gap-1">
+                <ThumbsUp className="w-3 h-3" />
+                Qualificados ({qualificado.length})
               </TabsTrigger>
-              <TabsTrigger value="rnm_90" className="text-xs">
-                🟡 90 dias ({rnmVence90.length})
+              <TabsTrigger value="frio" className="text-xs gap-1">
+                <Snowflake className="w-3 h-3" />
+                Frios ({frio.length})
               </TabsTrigger>
-              <TabsTrigger value="rnm_180" className="text-xs">
-                🟢 180 dias ({rnmVence180.length})
+              <TabsTrigger value="nao_qualificado" className="text-xs gap-1">
+                <HelpCircle className="w-3 h-3" />
+                Sem dados ({naoQualificado.length})
               </TabsTrigger>
-              <TabsTrigger value="perdidos" className="text-xs">
-                🟣 Perdidos ({perdidos.length})
+              <TabsTrigger value="naturalizacao" className="text-xs gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Elegíveis ({elegivelNaturalizacao.length})
               </TabsTrigger>
             </TabsList>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             {isLoading ? (
               <Skeleton className="h-64" />
             ) : (
               <>
-                <TabsContent value="rnm_vencido" className="mt-0">
-                  <LeadTable leads={rnmVencido} />
+                <TabsContent value="hot" className="mt-0">
+                  <LeadTable leads={hot} />
                 </TabsContent>
-                <TabsContent value="rnm_30" className="mt-0">
-                  <LeadTable leads={rnmVence30} />
+                <TabsContent value="qualificado" className="mt-0">
+                  <LeadTable leads={qualificado} />
                 </TabsContent>
-                <TabsContent value="rnm_90" className="mt-0">
-                  <LeadTable leads={rnmVence90} />
+                <TabsContent value="frio" className="mt-0">
+                  <LeadTable leads={frio} />
                 </TabsContent>
-                <TabsContent value="rnm_180" className="mt-0">
-                  <LeadTable leads={rnmVence180} />
+                <TabsContent value="nao_qualificado" className="mt-0">
+                  <LeadTable leads={naoQualificado} />
                 </TabsContent>
-                <TabsContent value="perdidos" className="mt-0">
-                  <LeadTable leads={perdidos} showRnm={false} />
+                <TabsContent value="naturalizacao" className="mt-0">
+                  <LeadTable leads={elegivelNaturalizacao} />
                 </TabsContent>
               </>
             )}
