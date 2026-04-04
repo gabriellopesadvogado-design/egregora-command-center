@@ -110,6 +110,88 @@ Deno.serve(async (req) => {
 
     console.log('[send-zapi-message] Instance found:', instance.nome, 'zapi_instance_id:', instance.zapi_instance_id);
 
+    // --- ROTA META (API OFICIAL) ---
+    if (instance.provider === 'meta') {
+      // Buscar credenciais da API Oficial
+      const { data: metaCred } = await supabase
+        .from('api_credentials')
+        .select('*')
+        .eq('provider', 'meta')
+        .eq('credential_type', 'access_token')
+        .eq('is_valid', true)
+        .single();
+
+      if (!metaCred) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Meta API credentials not configured' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const phoneNumberId = metaCred.metadata?.phone_number_id;
+      const accessToken = metaCred.value_encrypted;
+      const phone = contact.phone_number;
+
+      let metaResponse: any;
+
+      if (body.messageType === 'text') {
+        const resp = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: phone,
+            type: 'text',
+            text: { body: body.content },
+          }),
+        });
+        metaResponse = await resp.json();
+      } else {
+        // Para mídia, enviar como URL ou base64 não é suportado diretamente
+        // Por hora retornar erro informativo
+        return new Response(
+          JSON.stringify({ success: false, error: 'Media messages not yet supported for Meta API. Use text messages.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!metaResponse.messages?.[0]?.id) {
+        console.error('[send-zapi-message] Meta API error:', metaResponse);
+        return new Response(
+          JSON.stringify({ success: false, error: metaResponse.error?.message || 'Meta API error' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const metaMessageId = metaResponse.messages[0].id;
+
+      // Salvar mensagem no banco
+      await supabase.from('whatsapp_messages').insert({
+        conversation_id: body.conversationId,
+        contact_id: contact.id,
+        message_from: 'human',
+        message_type: 'text',
+        content: body.content,
+        whatsapp_message_id: metaMessageId,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+      });
+
+      await supabase
+        .from('whatsapp_conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', body.conversationId);
+
+      return new Response(
+        JSON.stringify({ success: true, messageId: metaMessageId }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // --- ROTA Z-API ---
     if (!instance.zapi_instance_id || !instance.zapi_token) {
       console.error('[send-zapi-message] Z-API credentials not configured');
       return new Response(

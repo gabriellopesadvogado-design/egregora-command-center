@@ -44,7 +44,8 @@ export function useWhatsAppSendMessage() {
       const provider = (conversation.whatsapp_instances as any)?.provider || 'zapi';
 
       // 2. Chamar a edge function correta baseado no provider
-      const functionName = provider === 'zapi' ? 'send-zapi-message' : 'send-whatsapp-message';
+      // Meta e Z-API usam a mesma função que detecta o provider internamente
+      const functionName = 'send-zapi-message';
 
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
