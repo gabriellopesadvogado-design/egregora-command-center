@@ -325,11 +325,20 @@ serve(async (req) => {
         ninaContext.filhos_brasileiros = /(sim|yes|tenho)/i.test(userLastMsg);
       }
 
-      // Salvar contexto final (ninaContext já contém os flags de áudio se foram setados)
-      console.log(`[nina-auto-reply] Salvando contexto final:`, JSON.stringify(ninaContext));
+      // Salvar contexto final
+      // FORÇAR inclusão dos flags de áudio se audioMatch existe
+      const contextToSave = {
+        ...ninaContext,
+        ...(audioMatch ? { 
+          audio_apresentacao_enviado: audioMatch[1] === "apresentacao" ? true : ninaContext.audio_apresentacao_enviado,
+          audio_rnm_enviado: audioMatch[1] === "rnm_request" ? true : ninaContext.audio_rnm_enviado
+        } : {})
+      };
+      
+      console.log(`[nina-auto-reply] Salvando contexto final:`, JSON.stringify(contextToSave));
       const { error: finalUpdateError } = await supabase
         .from("whatsapp_conversations")
-        .update({ nina_context: ninaContext })
+        .update({ nina_context: contextToSave })
         .eq("id", conv.id);
       
       if (finalUpdateError) {
