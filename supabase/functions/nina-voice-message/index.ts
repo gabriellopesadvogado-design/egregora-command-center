@@ -44,19 +44,19 @@ serve(async (req) => {
 
     switch (messageType) {
       case "apresentacao":
-        text = `Olá, ${firstName}, tudo bem? Meu nome é Hugo, sou representante aqui da Egrégora, especialistas em naturalização brasileira. ${firstName}, nós recebemos aqui algumas informações do seu caso, com interesse no processo de naturalização. Vou precisar fazer algumas perguntinhas rápidas só pra validar alguns dados e verificar seus requisitos, tudo bem? São bem rápidas.`;
+        text = `Olá, ${firstName}, tudo bem? Meu nome é Nina, sou representante aqui da Egrégora, especialistas em naturalização brasileira. ${firstName}, nós recebemos aqui algumas informações do seu caso, com interesse no processo de naturalização. Vou precisar fazer algumas perguntinhas rápidas só pra validar alguns dados e verificar seus requisitos, tudo bem? São bem rápidas.`;
         break;
       case "rnm_request":
-        text = `Perfeito ${firstName}! Muito obrigado por todas as informações. Pra finalizar, preciso só de mais um dado: você pode me informar a data de emissão e vencimento do seu RNM? Se preferir, pode mandar uma foto do documento que eu verifico pra você. Assim a gente consegue dar andamento no seu caso!`;
+        text = `Perfeito ${firstName}! Muito obrigada por todas as informações. Pra finalizar, preciso só de mais um dado: você pode me informar a data de emissão e vencimento do seu RNM? Se preferir, pode mandar uma foto do documento que eu verifico pra você. Assim a gente consegue dar andamento no seu caso!`;
         break;
       case "welcome":
-        text = `Olá ${firstName}! Aqui é o Hugo, da Egrégora Migration. Vi que você tem interesse em regularizar sua situação no Brasil. Vou te fazer algumas perguntas rápidas pra entender melhor como posso te ajudar, tá bom?`;
+        text = `Olá ${firstName}! Aqui é a Nina, da Egrégora Migration. Vi que você tem interesse em regularizar sua situação no Brasil. Vou te fazer algumas perguntas rápidas pra entender melhor como posso te ajudar, tá bom?`;
         break;
       case "thanks":
-        text = `Perfeito ${firstName}! Muito obrigado pelas informações. Vou analisar tudo e um dos nossos especialistas vai entrar em contato pra te explicar as melhores opções pro seu caso. Fique tranquilo que estamos cuidando de tudo!`;
+        text = `Perfeito ${firstName}! Muito obrigada pelas informações. Vou analisar tudo e um dos nossos especialistas vai entrar em contato pra te explicar as melhores opções pro seu caso. Fique tranquilo que estamos cuidando de tudo!`;
         break;
       default:
-        text = `Oi ${firstName}, aqui é o Hugo da Egrégora. Como posso te ajudar?`;
+        text = `Oi ${firstName}, aqui é a Nina da Egrégora. Como posso te ajudar?`;
     }
 
     console.log(`[nina-voice] Gerando áudio: "${text.substring(0, 50)}..." (${text.length} chars)`);
