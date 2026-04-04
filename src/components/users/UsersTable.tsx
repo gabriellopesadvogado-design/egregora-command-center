@@ -7,10 +7,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Power, KeyRound } from "lucide-react";
-import { useToggleUserActive } from "@/hooks/useUsers";
+import { Edit, Power, KeyRound, Trash2 } from "lucide-react";
+import { useToggleUserActive, useDeleteUser } from "@/hooks/useUsers";
 import { EditUserModal } from "./EditUserModal";
 import { ResetPasswordModal } from "./ResetPasswordModal";
 import type { Tables } from "@/integrations/supabase/types";
@@ -25,13 +35,23 @@ interface UsersTableProps {
 export function UsersTable({ users, isLoading }: UsersTableProps) {
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [resettingPasswordUser, setResettingPasswordUser] = useState<Profile | null>(null);
+  const [deletingUser, setDeletingUser] = useState<Profile | null>(null);
   const toggleActive = useToggleUserActive();
+  const deleteUser = useDeleteUser();
 
   const handleToggleActive = (user: Profile) => {
     toggleActive.mutate({
       user_id: user.id,
       ativo: !user.ativo,
     });
+  };
+
+  const handleDelete = () => {
+    if (deletingUser) {
+      deleteUser.mutate(deletingUser.id, {
+        onSuccess: () => setDeletingUser(null),
+      });
+    }
   };
 
   const getRoleBadge = (role: string) => {
@@ -121,8 +141,19 @@ export function UsersTable({ users, isLoading }: UsersTableProps) {
                           user.cargo === "admin" ||
                           user.cargo === "gestor"
                         }
+                        title={user.ativo ? "Desativar" : "Ativar"}
                       >
                         <Power className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeletingUser(user)}
+                        disabled={user.cargo === "admin" || user.cargo === "gestor"}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Excluir usuário"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -144,6 +175,30 @@ export function UsersTable({ users, isLoading }: UsersTableProps) {
         open={!!resettingPasswordUser}
         onClose={() => setResettingPasswordUser(null)}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o usuário <strong>{deletingUser?.nome}</strong>?
+              <br /><br />
+              Esta ação não pode ser desfeita. O usuário perderá acesso à plataforma permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteUser.isPending}
+            >
+              {deleteUser.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

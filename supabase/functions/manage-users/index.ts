@@ -217,6 +217,52 @@ Deno.serve(async (req) => {
         );
       }
 
+      case "delete_user": {
+        const { user_id } = data;
+
+        if (!user_id) {
+          return new Response(
+            JSON.stringify({ error: "user_id é obrigatório" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Verificar se o usuário não é admin/gestor
+        const { data: targetUser } = await supabaseAdmin
+          .from("core_users")
+          .select("cargo")
+          .eq("id", user_id)
+          .single();
+
+        if (targetUser?.cargo === "admin" || targetUser?.cargo === "gestor") {
+          return new Response(
+            JSON.stringify({ error: "Não é possível excluir administradores ou gestores" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Deletar do auth.users (isso também deleta de core_users via cascade ou trigger)
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+
+        if (authError) {
+          return new Response(
+            JSON.stringify({ error: authError.message }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Garantir que foi removido de core_users também
+        await supabaseAdmin
+          .from("core_users")
+          .delete()
+          .eq("id", user_id);
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: "Ação inválida" }),

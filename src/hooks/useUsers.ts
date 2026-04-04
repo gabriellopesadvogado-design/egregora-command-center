@@ -123,3 +123,24 @@ export function useResetUserPassword() {
     },
   });
 }
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data: result, error } = await supabase.functions.invoke("manage-users", {
+        body: { action: "delete_user", user_id: userId },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
+      toast.success("Usuário excluído com sucesso!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao excluir usuário");
+    },
+  });
+}
