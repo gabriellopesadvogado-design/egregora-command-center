@@ -1,16 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ConversationList } from "@/components/whatsapp/ConversationList";
 import { ChatArea } from "@/components/whatsapp/ChatArea";
 import { ConversationDetailsSidebar } from "@/components/whatsapp/details/ConversationDetailsSidebar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Settings, Users, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useWhatsAppInstances } from "@/hooks/whatsapp";
 
 export default function Conversas() {
   const navigate = useNavigate();
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const contactIdFromUrl = searchParams.get("contact");
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(contactIdFromUrl);
+  
+  // Atualizar conversa selecionada quando URL mudar
+  useEffect(() => {
+    if (contactIdFromUrl) {
+      setSelectedConversation(contactIdFromUrl);
+    }
+  }, [contactIdFromUrl]);
   const [showDetails, setShowDetails] = useState(false);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const { instances, isLoading } = useWhatsAppInstances();

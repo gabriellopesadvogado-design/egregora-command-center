@@ -1,8 +1,9 @@
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ptBR } from "date-fns/locale";
-import { ExternalLink, Phone, MessageCircle, Send } from "lucide-react";
+import { ExternalLink, Phone, MessageCircle, Send, MessageSquare } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   Sheet,
   SheetContent,
@@ -42,8 +43,30 @@ const formatCurrency = (v: number | null | undefined) =>
 
 export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const updateMeeting = useUpdateMeeting();
   const meetingId = meeting?.id;
+  
+  // Buscar contato WhatsApp vinculado
+  const { data: whatsappContact } = useQuery({
+    queryKey: ["whatsapp-contact-by-phone", meeting?.whatsapp_lead || meeting?.telefone_lead],
+    queryFn: async () => {
+      const phone = meeting?.whatsapp_lead || meeting?.telefone_lead;
+      if (!phone) return null;
+      
+      const cleanPhone = phone.replace(/\D/g, "");
+      const { data, error } = await supabase
+        .from("whatsapp_contacts")
+        .select("id, phone_number")
+        .or(`phone_number.ilike.%${cleanPhone}%,phone_number.ilike.%${cleanPhone.slice(-9)}%`)
+        .limit(1)
+        .single();
+      
+      if (error) return null;
+      return data;
+    },
+    enabled: !!meeting && !!(meeting.whatsapp_lead || meeting.telefone_lead),
+  });
 
   const { data: followups = [] } = useQuery({
     queryKey: ["followups", meetingId],
@@ -232,17 +255,46 @@ export function DealDetailPanel({ meeting, open, onClose }: DealDetailPanelProps
 
           <Separator />
 
-          {/* HubSpot link */}
-          {meeting.hubspot_deal_id && (
-            <a
-              href={`https://app.hubspot.com/contacts/48864156/record/0-3/${meeting.hubspot_deal_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              <ExternalLink className="h-3.5 w-3.5" /> Abrir no HubSpot
-            </a>
-          )}
+          {/* Links externos */}
+          <div className="space-y-2">
+            {/* Abrir no WhatsApp (conversa interna) */}
+            {whatsappContact ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  onClose();
+                  navigate(`/conversas?contact=${whatsappContact.id}`);
+                }}
+              >
+                <MessageSquare className="h-4 w-4 text-green-500" />
+                Abrir conversa no WhatsApp
+              </Button>
+            ) : (meeting.whatsapp_lead || meeting.telefone_lead) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 opacity-50"
+                disabled
+              >
+                <MessageSquare className="h-4 w-4" />
+                Sem conversa no WhatsApp
+              </Button>
+            ) : null}
+
+            {/* HubSpot link */}
+            {meeting.hubspot_deal_id && (
+              <a
+                href={`https://app.hubspot.com/contacts/48864156/record/0-3/${meeting.hubspot_deal_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-primary hover:underline p-2"
+              >
+                <ExternalLink className="h-4 w-4" /> Abrir no HubSpot
+              </a>
+            )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
