@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,22 +43,27 @@ serve(async (req) => {
     let text = "";
 
     switch (messageType) {
+      case "apresentacao":
+        text = `Olá, ${firstName}, tudo bem? Meu nome é Hugo, sou representante aqui da Egrégora, especialistas em naturalização brasileira. ${firstName}, nós recebemos aqui algumas informações do seu caso, com interesse no processo de naturalização. Vou precisar fazer algumas perguntinhas rápidas só pra validar alguns dados e verificar seus requisitos, tudo bem? São bem rápidas.`;
+        break;
       case "rnm_request":
-        text = `Oi ${firstName}, tudo bem? Verifiquei suas informações aqui. Uma última coisa: você pode me informar a data de emissão e vencimento do seu RNM? Se preferir, pode mandar uma foto que eu verifico pra você!`;
+        text = `Perfeito ${firstName}! Muito obrigado por todas as informações. Pra finalizar, preciso só de mais um dado: você pode me informar a data de emissão e vencimento do seu RNM? Se preferir, pode mandar uma foto do documento que eu verifico pra você. Assim a gente consegue dar andamento no seu caso!`;
         break;
       case "welcome":
-        text = `Olá ${firstName}! Aqui é a Nina, da Egrégora Migration. Vi que você tem interesse em regularizar sua situação no Brasil. Vou te fazer algumas perguntas rápidas pra entender melhor como posso te ajudar, tá bom?`;
+        text = `Olá ${firstName}! Aqui é o Hugo, da Egrégora Migration. Vi que você tem interesse em regularizar sua situação no Brasil. Vou te fazer algumas perguntas rápidas pra entender melhor como posso te ajudar, tá bom?`;
         break;
       case "thanks":
-        text = `Perfeito ${firstName}! Muito obrigada pelas informações. Vou analisar tudo e um dos nossos especialistas vai entrar em contato pra te explicar as opções. Fique tranquilo que estamos cuidando do seu caso!`;
+        text = `Perfeito ${firstName}! Muito obrigado pelas informações. Vou analisar tudo e um dos nossos especialistas vai entrar em contato pra te explicar as melhores opções pro seu caso. Fique tranquilo que estamos cuidando de tudo!`;
         break;
       default:
-        text = `Oi ${firstName}, aqui é a Nina da Egrégora. Como posso te ajudar?`;
+        text = `Oi ${firstName}, aqui é o Hugo da Egrégora. Como posso te ajudar?`;
     }
+
+    console.log(`[nina-voice] Gerando áudio: "${text.substring(0, 50)}..." (${text.length} chars)`);
 
     // Gerar áudio com ElevenLabs
     const audioResponse = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         method: "POST",
         headers: {
@@ -82,18 +88,9 @@ serve(async (req) => {
     }
 
     const audioBuffer = await audioResponse.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
-
-    // Buscar instância WhatsApp ativa
-    const { data: instance } = await supabase
-      .from("whatsapp_instances")
-      .select("instance_id, provider, api_token, phone_id, waba_id")
-      .eq("status", "connected")
-      .single();
-
-    if (!instance) {
-      throw new Error("Nenhuma instância WhatsApp conectada");
-    }
+    const audioBase64 = base64Encode(new Uint8Array(audioBuffer));
+    
+    console.log(`[nina-voice] Áudio gerado: ${audioBuffer.byteLength} bytes`);
 
     // Buscar telefone do contato
     const { data: contact } = await supabase
@@ -108,103 +105,105 @@ serve(async (req) => {
 
     const phone = contact.phone_number.replace(/\D/g, "");
 
-    let sendResult;
+    // Buscar instância WhatsApp com provider meta
+    const { data: instance } = await supabase
+      .from("whatsapp_instances")
+      .select("id, provider, phone_number")
+      .eq("provider", "meta")
+      .eq("is_active", true)
+      .single();
 
-    if (instance.provider === "meta_official") {
-      // Enviar via Meta Official API
-      const { data: metaCred } = await supabase
-        .from("api_credentials")
-        .select("value_encrypted")
-        .eq("provider", "meta_whatsapp")
-        .single();
-
-      if (!metaCred?.value_encrypted) {
-        throw new Error("Token Meta não configurado");
-      }
-
-      // Upload do áudio para Meta
-      const formData = new FormData();
-      const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
-      formData.append("file", audioBlob, "nina_audio.mp3");
-      formData.append("type", "audio/mpeg");
-      formData.append("messaging_product", "whatsapp");
-
-      const uploadResponse = await fetch(
-        `https://graph.facebook.com/v21.0/${instance.phone_id}/media`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${metaCred.value_encrypted}`,
-          },
-          body: formData,
-        }
-      );
-
-      const uploadData = await uploadResponse.json();
-      
-      if (!uploadData.id) {
-        throw new Error(`Erro upload Meta: ${JSON.stringify(uploadData)}`);
-      }
-
-      // Enviar mensagem de áudio
-      const sendResponse = await fetch(
-        `https://graph.facebook.com/v21.0/${instance.phone_id}/messages`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${metaCred.value_encrypted}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: phone,
-            type: "audio",
-            audio: {
-              id: uploadData.id,
-            },
-          }),
-        }
-      );
-
-      sendResult = await sendResponse.json();
-
-    } else {
-      // Fallback Z-API
-      const zapiResponse = await fetch(
-        `https://api.z-api.io/instances/${instance.instance_id}/token/${instance.api_token}/send-audio`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone,
-            audio: `data:audio/mpeg;base64,${audioBase64}`,
-          }),
-        }
-      );
-
-      sendResult = await zapiResponse.json();
+    if (!instance) {
+      throw new Error("Nenhuma instância Meta WhatsApp ativa");
     }
 
-    // Salvar mensagem no banco
+    // Buscar token Meta
+    const { data: metaCred } = await supabase
+      .from("api_credentials")
+      .select("value_encrypted, metadata")
+      .eq("provider", "meta")
+      .single();
+
+    if (!metaCred?.value_encrypted) {
+      throw new Error("Token Meta não configurado");
+    }
+
+    const phoneId = metaCred.metadata?.phone_number_id;
+    if (!phoneId) {
+      throw new Error("phone_number_id não configurado nas credenciais Meta");
+    }
+
+    console.log(`[nina-voice] Enviando áudio para ${phone} via Meta API`);
+
+    // Upload do áudio para Meta
+    const formData = new FormData();
+    const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
+    formData.append("file", audioBlob, "nina_audio.mp3");
+    formData.append("type", "audio/mpeg");
+    formData.append("messaging_product", "whatsapp");
+
+    const uploadResponse = await fetch(
+      `https://graph.facebook.com/v21.0/${phoneId}/media`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${metaCred.value_encrypted}`,
+        },
+        body: formData,
+      }
+    );
+
+    const uploadData = await uploadResponse.json();
+    
+    if (!uploadData.id) {
+      console.error("[nina-voice] Upload failed:", uploadData);
+      throw new Error(`Erro upload Meta: ${JSON.stringify(uploadData)}`);
+    }
+
+    console.log(`[nina-voice] Áudio uploaded, media_id: ${uploadData.id}`);
+
+    // Enviar mensagem de áudio
+    const sendResponse = await fetch(
+      `https://graph.facebook.com/v21.0/${phoneId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${metaCred.value_encrypted}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "audio",
+          audio: {
+            id: uploadData.id,
+          },
+        }),
+      }
+    );
+
+    const sendResult = await sendResponse.json();
+    console.log(`[nina-voice] Mensagem enviada:`, sendResult);
+
+    // Buscar conversa para salvar mensagem
     const { data: conversation } = await supabase
       .from("whatsapp_conversations")
       .select("id")
       .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .single();
 
     if (conversation) {
       await supabase.from("whatsapp_messages").insert({
         conversation_id: conversation.id,
         contact_id: contactId,
-        direction: "outbound",
-        type: "audio",
-        content: `[Áudio Nina] ${text}`,
+        message_from: "nina",
+        message_type: "audio",
+        content: `[Áudio Nina] ${text.substring(0, 100)}...`,
         status: "sent",
-        metadata: { 
-          nina_voice: true, 
-          message_type: messageType,
-          eleven_labs_chars: text.length 
-        },
+        sent_at: new Date().toISOString(),
+        whatsapp_message_id: sendResult.messages?.[0]?.id,
       });
     }
 
@@ -213,13 +212,14 @@ serve(async (req) => {
         success: true, 
         messageType,
         charsUsed: text.length,
+        audioBytes: audioBuffer.byteLength,
         sendResult 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error) {
-    console.error("Erro:", error);
+  } catch (error: any) {
+    console.error("[nina-voice] Erro:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
