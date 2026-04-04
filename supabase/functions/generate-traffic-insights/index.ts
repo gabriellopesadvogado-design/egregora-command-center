@@ -19,16 +19,15 @@ serve(async (req) => {
     // Buscar API key da OpenAI
     const { data: cred } = await supabase
       .from("api_credentials")
-      .select("api_key, encryption_iv")
+      .select("value_encrypted")
       .eq("provider", "openai")
       .single();
 
-    if (!cred?.api_key) {
+    if (!cred?.value_encrypted) {
       throw new Error("OpenAI API key não configurada");
     }
 
-    // Descriptografar a key (simplificado - usar a mesma lógica do projeto)
-    const openaiKey = cred.api_key; // Assumindo que está em texto por enquanto
+    const openaiKey = cred.value_encrypted;
 
     // Definir período (ontem)
     const hoje = new Date();

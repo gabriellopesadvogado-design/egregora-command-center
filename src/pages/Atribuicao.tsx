@@ -103,7 +103,7 @@ export default function Atribuicao() {
       const closedWon = leads.filter(l => l.is_won);
       const closedLost = leads.filter(l => l.deal_stage === "Perdido" || l.deal_stage === "Não Elegível");
       
-      const totalRevenue = closedWon.reduce((sum, l) => sum + (l.deal_value || 0), 0);
+      const totalRevenue = closedWon.reduce((sum, l) => sum + (l.revenue || l.deal_value || 0), 0);
       const daysToClose = closedWon.filter(l => l.days_to_close).map(l => l.days_to_close!);
       const avgDays = daysToClose.length ? daysToClose.reduce((a, b) => a + b, 0) / daysToClose.length : 0;
 
@@ -177,7 +177,7 @@ export default function Atribuicao() {
           l.is_won
         ).length;
         const closed = leads.filter(l => l.is_won).length;
-        const revenue = leads.filter(l => l.is_won).reduce((sum, l) => sum + (l.deal_value || 0), 0);
+        const revenue = leads.filter(l => l.is_won).reduce((sum, l) => sum + (l.revenue || l.deal_value || 0), 0);
         const daysArr = leads.filter(l => l.days_to_close).map(l => l.days_to_close!);
         const avgDays = daysArr.length ? Math.round(daysArr.reduce((a, b) => a + b, 0) / daysArr.length) : 0;
         
