@@ -20,6 +20,7 @@ import { AttributionTable } from "@/components/atribuicao/AttributionTable";
 import { AttributionChart } from "@/components/atribuicao/AttributionChart";
 import { LeadQualityChart } from "@/components/atribuicao/LeadQualityChart";
 import { CampaignInsights } from "@/components/atribuicao/CampaignInsights";
+import { AIAttributionInsights } from "@/components/atribuicao/AIAttributionInsights";
 
 type DateRange = "7d" | "30d" | "90d" | "all";
 
@@ -500,20 +501,12 @@ export default function Atribuicao() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              💡 Insights & Ações
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {qualityLoading ? (
-              <Skeleton className="h-64" />
-            ) : (
-              <CampaignInsights data={qualityData?.byCampaign || []} />
-            )}
-          </CardContent>
-        </Card>
+        {/* AI Insights de Atribuição */}
+        <AIAttributionInsights 
+          campaignData={campaignData} 
+          qualityData={qualityData?.byCampaign}
+          metrics={metrics}
+        />
       </div>
     </div>
   );
