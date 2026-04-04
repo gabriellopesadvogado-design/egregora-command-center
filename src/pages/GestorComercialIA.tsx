@@ -67,14 +67,14 @@ export default function GestorComercialIA() {
     }
   }, [messages]);
 
-  // Fetch database context for the AI
+  // Fetch database context for the AI (otimizado para não sobrecarregar)
   const fetchDatabaseContext = async () => {
     const context: Record<string, any> = {};
 
-    // Leads summary
+    // Leads summary (apenas contagens agregadas)
     const { data: leads } = await supabase
       .from("crm_leads")
-      .select("id, nome, campanha, canal, score_qualificacao, created_at");
+      .select("campanha, canal, score_qualificacao");
     context.total_leads = leads?.length || 0;
     context.leads_por_campanha = leads?.reduce((acc: Record<string, number>, l) => {
       const camp = l.campanha || "Sem campanha";
@@ -82,13 +82,18 @@ export default function GestorComercialIA() {
       return acc;
     }, {});
 
-    // Meetings with quality
+    // Meetings com métricas agregadas
     const { data: meetings } = await supabase
       .from("crm_meetings")
-      .select("id, lead_id, status, avaliacao_reuniao, valor_proposta, closer_id, created_at, data_fechamento");
+      .select("status, avaliacao_reuniao, valor_proposta, valor_fechamento, nome_lead, closer_id, data_fechamento");
+    
     context.total_reunioes = meetings?.length || 0;
+    context.reunioes_por_status = meetings?.reduce((acc: Record<string, number>, m) => {
+      acc[m.status] = (acc[m.status] || 0) + 1;
+      return acc;
+    }, {});
     context.reunioes_por_avaliacao = meetings?.reduce((acc: Record<string, number>, m) => {
-      const av = m.avaliacao_reuniao || "sem avaliação";
+      const av = m.avaliacao_reuniao || "sem_avaliacao";
       acc[av] = (acc[av] || 0) + 1;
       return acc;
     }, {});
@@ -96,50 +101,74 @@ export default function GestorComercialIA() {
     // Vendas (fechados)
     const vendas = meetings?.filter(m => m.status === "fechado") || [];
     context.total_vendas = vendas.length;
-    context.valor_total_vendas = vendas.reduce((sum, v) => sum + (v.valor_proposta || 0), 0);
+    context.valor_total_vendas = vendas.reduce((sum, v) => sum + (v.valor_fechamento || v.valor_proposta || 0), 0);
     context.ticket_medio = vendas.length ? context.valor_total_vendas / vendas.length : 0;
 
-    // Attribution view
+    // Top 10 maiores vendas
+    context.maiores_vendas = vendas
+      .sort((a, b) => (b.valor_fechamento || 0) - (a.valor_fechamento || 0))
+      .slice(0, 10)
+      .map(v => ({ nome: v.nome_lead, valor: v.valor_fechamento || v.valor_proposta }));
+
+    // Attribution agregado (não enviar todos os registros)
     const { data: attribution } = await supabase
       .from("lead_attribution_view")
-      .select("*");
-    context.attribution = attribution;
-
-    // Reativação
-    const { data: reativacao } = await supabase
-      .from("leads_reativacao")
-      .select("id, nome, score_qualificacao, tempo_residencia_brasil_anos, rnm_classificacao");
-    context.leads_reativacao = reativacao?.length || 0;
-    context.leads_elegiveis_naturalizacao = reativacao?.filter(
-      r => (r.tempo_residencia_brasil_anos || 0) >= 4 && r.rnm_classificacao === "indeterminado"
-    ).length || 0;
-
-    // Team members
-    const { data: team } = await supabase
-      .from("team_members")
-      .select("id, name, role");
-    context.equipe = team;
-
-    // Campanhas com métricas
-    const campanhasComMetricas = Object.entries(context.leads_por_campanha || {}).map(([campanha, total]) => {
-      const leadsDestaCampanha = attribution?.filter(a => a.campaign === campanha) || [];
-      const boas = leadsDestaCampanha.filter(l => l.quality === "boa").length;
-      const neutras = leadsDestaCampanha.filter(l => l.quality === "neutra").length;
-      const ruins = leadsDestaCampanha.filter(l => l.quality === "ruim").length;
-      const fechados = leadsDestaCampanha.filter(l => l.is_won).length;
-      const valor = leadsDestaCampanha.filter(l => l.is_won).reduce((s, l) => s + (l.deal_value || 0), 0);
-      
-      return {
-        campanha,
-        total_leads: total,
-        reunioes_boas: boas,
-        reunioes_neutras: neutras,
-        reunioes_ruins: ruins,
-        vendas: fechados,
-        valor_vendas: valor,
-      };
+      .select("campaign, quality, is_won, revenue, deal_value");
+    
+    // Agregar por campanha
+    const campanhasMap = new Map<string, any>();
+    attribution?.forEach(a => {
+      const camp = a.campaign || "Sem campanha";
+      if (!campanhasMap.has(camp)) {
+        campanhasMap.set(camp, { leads: 0, boas: 0, neutras: 0, ruins: 0, vendas: 0, receita: 0 });
+      }
+      const c = campanhasMap.get(camp);
+      c.leads++;
+      if (a.quality === "boa") c.boas++;
+      if (a.quality === "neutra") c.neutras++;
+      if (a.quality === "ruim") c.ruins++;
+      if (a.is_won) {
+        c.vendas++;
+        c.receita += a.revenue || a.deal_value || 0;
+      }
     });
-    context.campanhas_detalhadas = campanhasComMetricas;
+    context.campanhas = Array.from(campanhasMap.entries())
+      .map(([campanha, m]) => ({ campanha, ...m }))
+      .sort((a, b) => b.receita - a.receita)
+      .slice(0, 15); // Top 15 campanhas
+
+    // Reativação (apenas contagens)
+    const { data: reativacao } = await supabase
+      .from("leads_perdidos_qualificados")
+      .select("categoria_lead, score_qualificacao, elegivel_naturalizacao");
+    context.reativacao = {
+      total: reativacao?.length || 0,
+      hot: reativacao?.filter(r => r.categoria_lead === "hot").length || 0,
+      qualificados: reativacao?.filter(r => r.categoria_lead === "qualificado").length || 0,
+      frios: reativacao?.filter(r => r.categoria_lead === "frio").length || 0,
+      elegiveis_naturalizacao: reativacao?.filter(r => r.elegivel_naturalizacao).length || 0,
+    };
+
+    // Equipe comercial
+    const { data: closers } = await supabase
+      .from("core_users")
+      .select("id, nome, cargo")
+      .in("cargo", ["closer", "sdr", "admin", "gestor"]);
+    
+    // Vendas por closer
+    const vendasPorCloser = vendas.reduce((acc: Record<string, { vendas: number; valor: number }>, v) => {
+      const closer = closers?.find(c => c.id === v.closer_id);
+      const nome = closer?.nome || "Sem closer";
+      if (!acc[nome]) acc[nome] = { vendas: 0, valor: 0 };
+      acc[nome].vendas++;
+      acc[nome].valor += v.valor_fechamento || v.valor_proposta || 0;
+      return acc;
+    }, {});
+    context.vendas_por_vendedor = Object.entries(vendasPorCloser)
+      .map(([nome, m]) => ({ nome, ...m }))
+      .sort((a, b) => b.valor - a.valor);
+
+    context.equipe = closers?.map(c => ({ nome: c.nome, cargo: c.cargo }));
 
     return context;
   };
@@ -213,7 +242,7 @@ Responda a pergunta do usuário com base nos dados fornecidos.`;
           "Authorization": `Bearer ${openaiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-4o",
           messages: [
             { role: "system", content: systemPrompt },
             ...messages.filter(m => !m.isLoading).slice(-10).map(m => ({
@@ -223,7 +252,7 @@ Responda a pergunta do usuário com base nos dados fornecidos.`;
             { role: "user", content: input },
           ],
           temperature: 0.3,
-          max_tokens: 1500,
+          max_tokens: 4000,
         }),
       });
 
