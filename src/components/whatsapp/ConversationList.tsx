@@ -14,23 +14,25 @@ import { ptBR } from "date-fns/locale";
 interface ConversationListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
+  instanceId?: string | null;
 }
 
-export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
+export function ConversationList({ selectedId, onSelect, instanceId }: ConversationListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<"all" | "nina" | "human" | "paused">("all");
 
   // Buscar conversas reais do Supabase
   const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ['whatsapp_conversations_list'],
+    queryKey: ['whatsapp_conversations_list', instanceId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('whatsapp_conversations')
         .select(`
           id,
           status,
           is_active,
           last_message_at,
+          instance_id,
           contact:whatsapp_contacts (
             id,
             name,
@@ -40,6 +42,12 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
         `)
         .eq('is_active', true)
         .order('last_message_at', { ascending: false });
+
+      if (instanceId) {
+        query = query.eq('instance_id', instanceId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching conversations:', error);

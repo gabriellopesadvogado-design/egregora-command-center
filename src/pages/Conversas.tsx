@@ -12,6 +12,7 @@ export default function Conversas() {
   const navigate = useNavigate();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const { instances, isLoading } = useWhatsAppInstances();
   
   const hasActiveInstance = instances.length > 0;
@@ -48,12 +49,41 @@ export default function Conversas() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] gap-4">
+    <div className="flex flex-col h-[calc(100vh-5rem)] gap-4">
+      {/* Seletor de Instâncias */}
+      <div className="flex gap-2 overflow-x-auto pb-1 flex-shrink-0">
+        <button
+          onClick={() => setSelectedInstanceId(null)}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            selectedInstanceId === null
+              ? 'bg-[#041E42] text-white'
+              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          Todas
+        </button>
+        {instances.map((inst) => (
+          <button
+            key={inst.id}
+            onClick={() => setSelectedInstanceId(inst.id)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              selectedInstanceId === inst.id
+                ? 'bg-[#041E42] text-white'
+                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {inst.nome}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-1 gap-4 overflow-hidden">
       {/* Lista de Conversas */}
       <Card className="w-80 flex-shrink-0 overflow-hidden flex flex-col">
         <ConversationList
           selectedId={selectedConversation}
           onSelect={setSelectedConversation}
+          instanceId={selectedInstanceId}
         />
       </Card>
 
@@ -83,6 +113,7 @@ export default function Conversas() {
           />
         </Card>
       )}
+      </div>
     </div>
   );
 }
