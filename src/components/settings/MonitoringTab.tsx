@@ -63,10 +63,9 @@ interface SystemAlert {
 
 const COMPONENT_ICONS: Record<string, any> = {
   supabase: Database,
-  meta_api: BarChart3,
-  meta: BarChart3,
-  google_api: BarChart3,
-  google: BarChart3,
+  whatsapp_oficial: MessageSquare,
+  meta_ads: BarChart3,
+  google_ads: BarChart3,
   zapi: MessageSquare,
   openai: Brain,
   hubspot: Database,
@@ -75,10 +74,9 @@ const COMPONENT_ICONS: Record<string, any> = {
 
 const COMPONENT_LABELS: Record<string, string> = {
   supabase: "Supabase",
-  meta_api: "Meta (WhatsApp + Ads)",
-  meta: "Meta (WhatsApp + Ads)",
-  google_api: "Google Ads",
-  google: "Google Ads",
+  whatsapp_oficial: "API Oficial WhatsApp",
+  meta_ads: "Meta Ads",
+  google_ads: "Google Ads",
   zapi: "Z-API (WhatsApp)",
   openai: "OpenAI",
   hubspot: "HubSpot",
@@ -184,23 +182,36 @@ export function MonitoringTab() {
       });
     }
 
-    // Meta (WhatsApp + Ads)
+    // API Oficial WhatsApp (Meta)
     const metaConnected = metaInstances.filter((i: any) => i.is_connected).length;
-    const metaCreds = apiCredentials.filter((c: any) => c.provider === "meta" && c.is_valid);
-    if (metaInstances.length > 0 || metaCreds.length > 0) {
-      items.push({
-        id: "meta",
-        component: "meta",
-        status: metaConnected > 0 || metaCreds.length > 0 ? "healthy" : "down",
-        status_message: metaConnected > 0 ? `${metaConnected} instância(s) conectada(s)` : metaCreds.length > 0 ? "Credenciais válidas" : "Não configurado",
-        latency_ms: null,
-        success_rate: 100,
-        last_error: null,
-        last_error_at: null,
-        last_check_at: now,
-        metadata: {},
-      });
-    }
+    const metaAccessToken = apiCredentials.find((c: any) => c.provider === "meta" && c.credential_type === "access_token" && c.is_valid);
+    items.push({
+      id: "whatsapp_oficial",
+      component: "whatsapp_oficial",
+      status: metaConnected > 0 || metaAccessToken ? "healthy" : "unknown",
+      status_message: metaConnected > 0 ? "Conectado" : metaAccessToken ? "Credenciais válidas" : "Não configurado",
+      latency_ms: null,
+      success_rate: 100,
+      last_error: null,
+      last_error_at: null,
+      last_check_at: now,
+      metadata: {},
+    });
+
+    // Meta Ads (separado)
+    const metaAdsCreds = apiCredentials.filter((c: any) => c.provider === "meta" && (c.credential_type === "pixel_id" || c.credential_type === "account_id") && c.is_valid);
+    items.push({
+      id: "meta_ads",
+      component: "meta_ads",
+      status: metaAdsCreds.length > 0 ? "healthy" : "unknown",
+      status_message: metaAdsCreds.length > 0 ? "Credenciais configuradas" : "Não configurado",
+      latency_ms: null,
+      success_rate: null,
+      last_error: null,
+      last_error_at: null,
+      last_check_at: now,
+      metadata: {},
+    });
 
     // OpenAI
     const openaiCreds = apiCredentials.filter((c: any) => c.provider === "openai" && c.is_valid);
@@ -235,8 +246,8 @@ export function MonitoringTab() {
     // Google Ads
     const googleCreds = apiCredentials.filter((c: any) => c.provider === "google" && c.is_valid);
     items.push({
-      id: "google",
-      component: "google",
+      id: "google_ads",
+      component: "google_ads",
       status: googleCreds.length > 0 ? "healthy" : "unknown",
       status_message: googleCreds.length > 0 ? "Credenciais configuradas" : "Não configurado",
       latency_ms: null,
