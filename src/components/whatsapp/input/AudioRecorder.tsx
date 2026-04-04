@@ -4,7 +4,7 @@ import { X, Send, StopCircle, Headphones, Trash2, RotateCcw, Loader2 } from "luc
 import { MediaSendParams } from "./MessageInputContainer";
 import { useToast } from "@/hooks/use-toast";
 // @ts-ignore
-import lamejs from "lamejs";
+import lamejs from "@breezystack/lamejs";
 
 interface AudioRecorderProps {
   onSend: (params: MediaSendParams) => void;
