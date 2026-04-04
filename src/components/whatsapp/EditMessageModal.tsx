@@ -19,7 +19,7 @@ export const EditMessageModal = ({
   onSave,
   isLoading,
 }: EditMessageModalProps) => {
-  const [content, setContent] = useState(currentContent);
+  const [content, setContent] = useState(currentContent || '');
 
   const handleSave = () => {
     if (content.trim() && content !== currentContent) {
@@ -64,7 +64,7 @@ export const EditMessageModal = ({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isLoading || !content.trim() || content === currentContent}
+            disabled={isLoading || !(content || '').trim() || content === (currentContent || '')}
           >
             {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
             Salvar
