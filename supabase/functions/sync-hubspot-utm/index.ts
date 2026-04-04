@@ -10,8 +10,16 @@ const CAMPAIGN_MAP: Record<string, string> = {
   "[Y][Leads] - Leadads — Cópia [25.04]": "Meta_Leadads_Principal",
   "Campanha Escala": "Meta_Escala",
   "Nova campanha de Leads": "Meta_Nova_Leads",
-  "{{campaign.name}}": "", // Variável não resolvida - ignorar
+  "Leadads": "Meta_Leadads_Principal",
+  "leadads": "Meta_Leadads_Principal",
 };
+
+// Campanhas ativas no Meta (para inferir quando {{campaign.name}} não resolve)
+// Atualizar conforme mudar as campanhas ativas
+const ACTIVE_META_CAMPAIGNS = [
+  "Meta_Leadads_Principal", // Principal - maior volume
+  "Meta_Escala",            // Segunda maior
+];
 
 // Mapeamento de sources para canais
 const SOURCE_MAP: Record<string, string> = {
@@ -113,24 +121,46 @@ Deno.serve(async (req) => {
 
       // Determinar campanha
       let campanha = props.utm_campaign || "";
+      const source = props.hs_analytics_source || "";
+      const drill1 = props.hs_analytics_source_data_1 || "";
       
-      // Se a campanha é uma variável não resolvida, usar analytics_source
-      if (!campanha || campanha.includes("{{")) {
-        campanha = "";
+      // Se a campanha é uma variável não resolvida {{campaign.name}}
+      if (campanha.includes("{{")) {
+        // É do Meta (PAID_SOCIAL + Facebook) - atribuir à campanha principal ativa
+        if (source === "PAID_SOCIAL" && drill1.toLowerCase().includes("facebook")) {
+          campanha = ACTIVE_META_CAMPAIGNS[0]; // Meta_Leadads_Principal
+        } else {
+          campanha = "";
+        }
       }
 
-      // Mapear para nome interno
-      campanha = CAMPAIGN_MAP[campanha] || campanha;
+      // Mapear para nome interno se tiver valor
+      if (campanha && !campanha.startsWith("Meta_") && !campanha.startsWith("Google_")) {
+        campanha = CAMPAIGN_MAP[campanha] || campanha;
+      }
 
       // Se ainda não tem campanha, derivar do analytics_source
       if (!campanha) {
-        const source = props.hs_analytics_source || "";
-        const drill1 = props.hs_analytics_source_data_1 || "";
-        
         if (source === "PAID_SOCIAL" && drill1.toLowerCase().includes("facebook")) {
-          campanha = "Meta_Ads_Geral";
+          // Meta Ads sem UTM específico - usar campanha principal
+          campanha = ACTIVE_META_CAMPAIGNS[0];
         } else if (source === "PAID_SEARCH") {
           campanha = "Google_Ads";
+        } else if (source === "ORGANIC_SEARCH") {
+          campanha = "Organico_Google";
+        } else if (source === "SOCIAL_MEDIA") {
+          // Orgânico de redes sociais
+          if (drill1.toLowerCase().includes("instagram")) {
+            campanha = "Organico_Instagram";
+          } else if (drill1.toLowerCase().includes("facebook")) {
+            campanha = "Organico_Facebook";
+          } else {
+            campanha = "Organico_Social";
+          }
+        } else if (source === "DIRECT_TRAFFIC") {
+          campanha = "Direto";
+        } else if (source === "OFFLINE") {
+          campanha = "Offline_Manual";
         } else if (source) {
           campanha = SOURCE_MAP[source] || source;
         }
