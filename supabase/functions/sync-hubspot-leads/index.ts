@@ -92,7 +92,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { since_hours = 24, limit = 100 } = await req.json().catch(() => ({}));
+    const { since_hours = 24, limit = 100, test_only = true } = await req.json().catch(() => ({}));
+
+    // Se test_only, buscar lista de números de teste
+    let testPhones: string[] = [];
+    if (test_only) {
+      const { data: testNumbers } = await supabase
+        .from("test_phone_numbers")
+        .select("phone_number")
+        .eq("is_active", true);
+      
+      testPhones = (testNumbers || []).map(t => t.phone_number.replace(/\D/g, ""));
+      
+      if (testPhones.length === 0) {
+        return new Response(
+          JSON.stringify({ success: true, message: "No test numbers configured", created: 0, updated: 0, skipped: 0 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // Buscar contatos recentes do HubSpot
     const sinceDate = new Date(Date.now() - since_hours * 60 * 60 * 1000).toISOString();
@@ -139,6 +157,15 @@ Deno.serve(async (req) => {
       if (!phone || phone.length < 10) {
         skipped++;
         continue;
+      }
+
+      // Se test_only, verificar se o telefone está na lista de teste
+      if (test_only && testPhones.length > 0) {
+        const isTestPhone = testPhones.some(tp => phone.includes(tp) || tp.includes(phone));
+        if (!isTestPhone) {
+          skipped++;
+          continue;
+        }
       }
 
       const nome = `${props.firstname || ""} ${props.lastname || ""}`.trim() || "Sem Nome";
@@ -205,6 +232,8 @@ Deno.serve(async (req) => {
         updated,
         skipped,
         since: sinceDate,
+        test_only,
+        test_phones_count: testPhones.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
