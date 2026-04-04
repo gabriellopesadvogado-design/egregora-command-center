@@ -473,12 +473,15 @@ function AddCredentialModal({ onClose }: { onClose: () => void }) {
   const createMutation = useMutation({
     mutationFn: async () => {
       // Usar Edge Function para criptografar e salvar
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://zxwkjogjbyywufertkor.supabase.co';
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4d2tqb2dqYnl5d3VmZXJ0a29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MjU0MjQsImV4cCI6MjA4OTUwMTQyNH0.xbRlGXZVvoeaWsDMeVgwd3AcGo7WnoycsLCqZOsgCjM';
+      
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL || 'https://zxwkjogjbyywufertkor.supabase.co'}/functions/v1/manage-credential`,
+        `${supabaseUrl}/functions/v1/manage-credential`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
