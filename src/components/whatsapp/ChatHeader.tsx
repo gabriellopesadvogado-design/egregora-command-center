@@ -11,9 +11,11 @@ import { QueueIndicator } from "@/components/conversations/QueueIndicator";
 import { AssignAgentDialog } from "@/components/conversations/AssignAgentDialog";
 import { EditContactModal } from "./EditContactModal";
 import { CadenceModal } from "./CadenceModal";
+import { PipelineBadge } from "./PipelineBadge";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversationAssignment } from "@/hooks/whatsapp/useConversationAssignment";
+import { useContactPipeline } from "@/hooks/useContactPipeline";
 import { isContactNameMissing } from "@/utils/contactUtils";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +34,7 @@ interface ChatHeaderProps {
 
 export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, conversationId, conversation, onRefresh }: ChatHeaderProps) => {
   const { data: topicsData } = useConversationTopics(conversationId || null);
+  const { data: pipelineData } = useContactPipeline(contact?.id);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isEditContactModalOpen, setIsEditContactModalOpen] = useState(false);
   const [isCadenceModalOpen, setIsCadenceModalOpen] = useState(false);
@@ -95,6 +98,14 @@ export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, convers
             <p className="text-xs text-muted-foreground">
               {contact.phone_number}
             </p>
+            {/* Pipeline Badge */}
+            <div className="mt-1">
+              <PipelineBadge 
+                status={pipelineData?.pipeline_status || null} 
+                quality={pipelineData?.lead_quality}
+                size="sm"
+              />
+            </div>
             {topicsData?.topics && topicsData.topics.length > 0 && (
               <div className="mt-1">
                 <TopicBadges topics={topicsData.topics} size="sm" showIcon={true} maxTopics={3} />

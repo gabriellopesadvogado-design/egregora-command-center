@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { PipelineDot } from "./PipelineBadge";
+import { useContactsPipeline } from "@/hooks/useContactPipeline";
 
 interface ConversationListProps {
   selectedId: string | null;
@@ -83,6 +85,13 @@ export function ConversationList({ selectedId, onSelect, instanceId }: Conversat
     },
     refetchInterval: 5000, // Atualizar a cada 5 segundos
   });
+
+  // Buscar pipeline de todos os contatos
+  const contactIds = useMemo(
+    () => conversations.map((c: any) => c.contact?.id).filter(Boolean),
+    [conversations]
+  );
+  const { data: pipelineMap = {} } = useContactsPipeline(contactIds);
 
   const filteredConversations = conversations.filter((conv: any) => {
     const contact = conv.contact;
@@ -218,6 +227,10 @@ export function ConversationList({ selectedId, onSelect, instanceId }: Conversat
                         {getStatusIcon(conv.status)}
                         <span className="ml-1">{getStatusLabel(conv.status)}</span>
                       </Badge>
+                      {/* Pipeline indicator */}
+                      {contact?.id && pipelineMap[contact.id]?.pipeline_status && (
+                        <PipelineDot status={pipelineMap[contact.id].pipeline_status} />
+                      )}
                     </div>
                   </div>
 
