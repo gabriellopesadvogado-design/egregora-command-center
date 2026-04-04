@@ -107,8 +107,8 @@ serve(async (req) => {
         content: m.content || "",
       })).filter((m: any) => m.content);
 
-      // Buscar contexto já coletado
-      const ninaContext = conv.nina_context || {};
+      // Buscar contexto já coletado (usar objeto mutável)
+      let ninaContext: any = conv.nina_context ? { ...conv.nina_context } : {};
       
       // Buscar prompt do agente Nina no banco
       const { data: ninaAgent } = await supabase
@@ -161,26 +161,63 @@ serve(async (req) => {
       // Verificar se tem comando de áudio na resposta
       let audioMatch = ninaReply.match(/\[ENVIAR_AUDIO:(\w+)\]/);
       
+      console.log(`[nina-auto-reply] audioMatch inicial: ${audioMatch}`);
+      console.log(`[nina-auto-reply] ninaContext.audio_apresentacao_enviado: ${ninaContext.audio_apresentacao_enviado}`);
+      
       // DETECÇÃO AUTOMÁTICA DE ÁUDIO baseada no contexto
-      // Se não temos o nome ainda no contexto, mas a resposta pergunta sobre país/nacionalidade,
-      // significa que acabamos de receber o nome → enviar áudio de apresentação
-      if (!audioMatch && !ninaContext.audio_apresentacao_enviado) {
-        const lastUserMsg = messages.find((m: any) => ["user", "human"].includes(m.message_from))?.content || "";
-        const perguntaNacionalidade = ninaReply.toLowerCase().includes("país") || 
-                                       ninaReply.toLowerCase().includes("nasceu") ||
-                                       ninaReply.toLowerCase().includes("nacionalidade");
+      // Se a resposta pergunta sobre país/nacionalidade E ainda não enviamos áudio de apresentação
+      const replyLower = ninaReply.toLowerCase();
+      const perguntaNacionalidade = replyLower.includes("país") || 
+                                     replyLower.includes("pais") ||
+                                     replyLower.includes("nasceu") ||
+                                     replyLower.includes("nacionalidade") ||
+                                     replyLower.includes("onde você nasceu") ||
+                                     replyLower.includes("qual o seu país");
+      
+      console.log(`[nina-auto-reply] DEBUG: perguntaNacionalidade=${perguntaNacionalidade}, audioMatch=${!!audioMatch}, audio_enviado=${ninaContext.audio_apresentacao_enviado}, history.length=${history.length}`);
+      
+      // Condição simplificada: se pergunta sobre nacionalidade E é a primeira/segunda interação E não enviou áudio ainda
+      const deveEnviarAudioApresentacao = perguntaNacionalidade && 
+                                           !audioMatch && 
+                                           !ninaContext.audio_apresentacao_enviado &&
+                                           history.length <= 4;
+      
+      console.log(`[nina-auto-reply] deveEnviarAudioApresentacao: ${deveEnviarAudioApresentacao}`);
+      
+      if (deveEnviarAudioApresentacao) {
+        const lastUserMsg = lastMsg.content || "";
+        console.log(`[nina-auto-reply] Entrando na detecção de áudio. lastUserMsg: "${lastUserMsg}"`);
         
-        // Se a resposta pergunta sobre nacionalidade e ainda não enviamos o áudio de apresentação
-        if (perguntaNacionalidade && lastUserMsg.length > 2) {
-          console.log(`[nina-auto-reply] Detectado: transição para nacionalidade, enviando áudio de apresentação`);
-          audioMatch = ["[ENVIAR_AUDIO:apresentacao]", "apresentacao"];
-          
-          // Marcar que já enviamos
-          await supabase
-            .from("whatsapp_conversations")
-            .update({ nina_context: { ...ninaContext, audio_apresentacao_enviado: true } })
-            .eq("id", conv.id);
+        // Extrair nome do lead
+        let nomeLead = "";
+        
+        // Tentar extrair de padrões conhecidos
+        const nomeMatch = lastUserMsg.match(/(?:me chamo|sou o?|meu nome é|nome:?)\s+(\w+)/i);
+        if (nomeMatch) {
+          nomeLead = nomeMatch[1];
+        } else {
+          // Se não encontrou padrão, buscar nas mensagens anteriores
+          const msgComNome = messages.find((m: any) => 
+            ["user", "human"].includes(m.message_from) && 
+            /(?:me chamo|sou o?|meu nome é|nome:?)/i.test(m.content || "")
+          );
+          if (msgComNome) {
+            const match = msgComNome.content?.match(/(?:me chamo|sou o?|meu nome é|nome:?)\s+(\w+)/i);
+            nomeLead = match ? match[1] : lastUserMsg;
+          } else {
+            // Última tentativa: usar a última palavra da mensagem ou o nome do contato
+            nomeLead = lastUserMsg.split(" ").pop() || contact.name || "amigo";
+          }
         }
+        
+        console.log(`[nina-auto-reply] Nome extraído: "${nomeLead}"`);
+        console.log(`[nina-auto-reply] ENVIANDO ÁUDIO DE APRESENTAÇÃO para ${nomeLead}!`);
+        
+        audioMatch = ["[ENVIAR_AUDIO:apresentacao]", "apresentacao"] as any;
+        ninaContext.nome_lead = nomeLead;
+        ninaContext.audio_apresentacao_enviado = true;
+        
+        console.log(`[nina-auto-reply] Flags setados no ninaContext: nome_lead=${nomeLead}, audio_apresentacao_enviado=true`);
       }
       
       // Se pergunta sobre RNM e ainda não enviamos o áudio de RNM
@@ -246,10 +283,12 @@ serve(async (req) => {
       // Se tiver comando de áudio, enviar áudio
       if (audioMatch) {
         const audioType = audioMatch[1];
-        console.log(`[nina-auto-reply] Enviando áudio: ${audioType}`);
+        // Prioridade: nome extraído da mensagem > nome do contexto > nome do contato > fallback
+        const leadNameForAudio = ninaContext.nome_lead || contact.name || "amigo";
+        console.log(`[nina-auto-reply] Enviando áudio: ${audioType} para ${leadNameForAudio} (contactId: ${contact.id})`);
 
         try {
-          await fetch(`${supabaseUrl}/functions/v1/nina-voice-message`, {
+          const audioResponse = await fetch(`${supabaseUrl}/functions/v1/nina-voice-message`, {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${supabaseKey}`,
@@ -257,38 +296,45 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               contactId: contact.id,
-              leadName: contact.name || "amigo",
+              leadName: leadNameForAudio,
               messageType: audioType,
             }),
           });
+          const audioResult = await audioResponse.json();
+          console.log(`[nina-auto-reply] Resultado do áudio:`, JSON.stringify(audioResult));
         } catch (audioErr) {
           console.error("[nina-auto-reply] Erro ao enviar áudio:", audioErr);
         }
       }
 
       // Atualizar contexto da conversa (extrair informações da última resposta do usuário)
-      const updatedContext = { ...ninaContext };
       const userLastMsg = lastMsg.content?.toLowerCase() || "";
       
-      // Tentar extrair informações da resposta
+      // Tentar extrair informações da resposta (sem sobrescrever flags de áudio)
       if (!ninaContext.pais_nascimento && history.length <= 3) {
-        updatedContext.pais_nascimento = lastMsg.content;
+        ninaContext.pais_nascimento = lastMsg.content;
       } else if (!ninaContext.tempo_brasil && /\d+\s*(ano|mes|meses|years?)/.test(userLastMsg)) {
-        updatedContext.tempo_brasil = lastMsg.content;
+        ninaContext.tempo_brasil = lastMsg.content;
       } else if (!ninaContext.servico_interesse && /(natural|resid|autor)/i.test(userLastMsg)) {
-        updatedContext.servico_interesse = lastMsg.content;
+        ninaContext.servico_interesse = lastMsg.content;
       } else if (!ninaContext.rnm_classificacao && /(tempor|indeterm|não|nao|tenho)/i.test(userLastMsg)) {
-        updatedContext.rnm_classificacao = lastMsg.content;
+        ninaContext.rnm_classificacao = lastMsg.content;
       } else if (ninaContext.rnm_classificacao && ninaContext.casado_brasileiro === undefined) {
-        updatedContext.casado_brasileiro = /(sim|yes|sou|tenho)/i.test(userLastMsg);
-      } else if (updatedContext.casado_brasileiro !== undefined && ninaContext.filhos_brasileiros === undefined) {
-        updatedContext.filhos_brasileiros = /(sim|yes|tenho)/i.test(userLastMsg);
+        ninaContext.casado_brasileiro = /(sim|yes|sou|tenho)/i.test(userLastMsg);
+      } else if (ninaContext.casado_brasileiro !== undefined && ninaContext.filhos_brasileiros === undefined) {
+        ninaContext.filhos_brasileiros = /(sim|yes|tenho)/i.test(userLastMsg);
       }
 
-      await supabase
+      // Salvar contexto final (ninaContext já contém os flags de áudio se foram setados)
+      console.log(`[nina-auto-reply] Salvando contexto final:`, JSON.stringify(ninaContext));
+      const { error: finalUpdateError } = await supabase
         .from("whatsapp_conversations")
-        .update({ nina_context: updatedContext })
+        .update({ nina_context: ninaContext })
         .eq("id", conv.id);
+      
+      if (finalUpdateError) {
+        console.error(`[nina-auto-reply] Erro no update final:`, finalUpdateError);
+      }
 
       results.push({
         conversation_id: conv.id,
