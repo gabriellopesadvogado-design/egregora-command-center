@@ -7,6 +7,83 @@ const corsHeaders = {
 
 const VERIFY_TOKEN = 'egregora_meta_webhook_2026';
 
+// Função para baixar mídia do Meta e fazer upload para Supabase Storage
+async function downloadAndStoreMedia(
+  supabase: any,
+  mediaId: string,
+  accessToken: string,
+  messageType: string,
+  mimeType: string
+): Promise<string | null> {
+  try {
+    // 1. Obter URL temporária da mídia
+    const mediaInfoResp = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    const mediaInfo = await mediaInfoResp.json();
+    
+    if (!mediaInfo.url) {
+      console.error('[meta-webhook] Could not get media URL:', mediaInfo);
+      return null;
+    }
+
+    console.log('[meta-webhook] Media URL obtained:', mediaInfo.url);
+
+    // 2. Baixar o arquivo
+    const mediaResp = await fetch(mediaInfo.url, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    if (!mediaResp.ok) {
+      console.error('[meta-webhook] Failed to download media:', mediaResp.status);
+      return null;
+    }
+
+    const mediaBuffer = await mediaResp.arrayBuffer();
+    const mediaData = new Uint8Array(mediaBuffer);
+
+    // 3. Determinar extensão
+    const extMap: Record<string, string> = {
+      'audio/ogg': 'ogg',
+      'audio/ogg; codecs=opus': 'ogg',
+      'audio/mpeg': 'mp3',
+      'audio/mp4': 'm4a',
+      'audio/aac': 'aac',
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'video/mp4': 'mp4',
+      'application/pdf': 'pdf',
+    };
+    const ext = extMap[mimeType] || mimeType.split('/')[1]?.split(';')[0] || 'bin';
+    const fileName = `${messageType}_${mediaId}.${ext}`;
+    const filePath = `meta-inbound/${fileName}`;
+
+    // 4. Upload para Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('whatsapp-media')
+      .upload(filePath, mediaData, {
+        contentType: mimeType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('[meta-webhook] Upload error:', uploadError);
+      return null;
+    }
+
+    // 5. Retornar URL pública
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const publicUrl = `${supabaseUrl}/storage/v1/object/public/whatsapp-media/${filePath}`;
+    console.log('[meta-webhook] Media stored at:', publicUrl);
+    
+    return publicUrl;
+  } catch (error) {
+    console.error('[meta-webhook] Error downloading media:', error);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   // Verificação do webhook (GET)
   if (req.method === 'GET') {
@@ -50,6 +127,17 @@ Deno.serve(async (req) => {
 
     const instanceId = metaInstance.id;
 
+    // Buscar token da API Oficial para download de mídia
+    const { data: metaCred } = await supabase
+      .from('api_credentials')
+      .select('value_encrypted')
+      .eq('provider', 'meta')
+      .eq('credential_type', 'access_token')
+      .eq('is_valid', true)
+      .single();
+
+    const accessToken = metaCred?.value_encrypted || '';
+
     // Processar eventos
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
@@ -67,21 +155,40 @@ Deno.serve(async (req) => {
           let content = '';
           let mediaUrl = '';
           let mediaMimeType = '';
+          let mediaId = '';
 
           if (messageType === 'text') {
             content = message.text?.body || '';
           } else if (messageType === 'image') {
             content = message.image?.caption || '[Imagem]';
             mediaMimeType = message.image?.mime_type || 'image/jpeg';
+            mediaId = message.image?.id || '';
           } else if (messageType === 'audio') {
             content = '[Áudio]';
             mediaMimeType = message.audio?.mime_type || 'audio/ogg';
+            mediaId = message.audio?.id || '';
           } else if (messageType === 'document') {
             content = message.document?.filename || '[Documento]';
             mediaMimeType = message.document?.mime_type || 'application/pdf';
+            mediaId = message.document?.id || '';
           } else if (messageType === 'video') {
             content = message.video?.caption || '[Vídeo]';
             mediaMimeType = message.video?.mime_type || 'video/mp4';
+            mediaId = message.video?.id || '';
+          }
+
+          // Baixar e armazenar mídia se houver
+          if (mediaId && accessToken) {
+            const storedUrl = await downloadAndStoreMedia(
+              supabase,
+              mediaId,
+              accessToken,
+              messageType,
+              mediaMimeType
+            );
+            if (storedUrl) {
+              mediaUrl = storedUrl;
+            }
           }
 
           // Normalizar número

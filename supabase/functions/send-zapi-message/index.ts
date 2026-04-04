@@ -151,51 +151,77 @@ Deno.serve(async (req) => {
         });
         metaResponse = await resp.json();
       } else if (['audio', 'image', 'video', 'document'].includes(body.messageType)) {
-        // Upload da mídia para Supabase Storage → URL pública → Meta API
-        let mediaPublicUrl = body.mediaUrl || '';
+        // Para Meta API, precisamos fazer upload da mídia primeiro
+        const base64Data = body.mediaBase64?.includes(',') 
+          ? body.mediaBase64.split(',')[1] 
+          : body.mediaBase64;
 
-        if (body.mediaBase64 && !mediaPublicUrl) {
-          // Fazer upload do base64 para Storage
-          const base64Data = body.mediaBase64.includes(',') 
-            ? body.mediaBase64.split(',')[1] 
-            : body.mediaBase64;
-          
-          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-          const ext = body.mediaMimetype?.split('/')[1]?.split(';')[0] || 
-            (body.messageType === 'audio' ? 'ogg' : 
-             body.messageType === 'image' ? 'jpg' : 
-             body.messageType === 'video' ? 'mp4' : 'pdf');
-          
-          const fileName = body.fileName || `${body.messageType}_${Date.now()}.${ext}`;
-          const filePath = `meta-outbound/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('whatsapp-media')
-            .upload(filePath, binaryData, {
-              contentType: body.mediaMimetype || 'application/octet-stream',
-              upsert: true,
-            });
-
-          if (uploadError) {
-            console.error('[send-zapi-message] Upload error:', uploadError);
-            return new Response(
-              JSON.stringify({ success: false, error: 'Failed to upload media: ' + uploadError.message }),
-              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-
-          mediaPublicUrl = `${supabaseUrl}/storage/v1/object/public/whatsapp-media/${filePath}`;
-          console.log('[send-zapi-message] Media uploaded to:', mediaPublicUrl);
-        }
-
-        if (!mediaPublicUrl) {
+        if (!base64Data && !body.mediaUrl) {
           return new Response(
-            JSON.stringify({ success: false, error: 'No media URL or base64 provided' }),
+            JSON.stringify({ success: false, error: 'No media provided' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        // Montar payload para Meta API
+        let metaMediaId = '';
+
+        if (base64Data) {
+          // Upload para Meta Media API usando form-data
+          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          
+          // Determinar mime type correto
+          let mimeType = body.mediaMimetype || 'application/octet-stream';
+          
+          // Meta aceita audio/ogg, audio/mp4, audio/mpeg para áudio
+          // Se for webm, vamos tentar enviar como ogg (mesma codificação opus)
+          if (mimeType.includes('webm')) {
+            mimeType = 'audio/ogg';
+          }
+
+          const ext = mimeType.split('/')[1]?.split(';')[0] || 'bin';
+          const fileName = body.fileName || `${body.messageType}_${Date.now()}.${ext}`;
+
+          // Criar FormData para upload
+          const formData = new FormData();
+          const blob = new Blob([binaryData], { type: mimeType });
+          formData.append('file', blob, fileName);
+          formData.append('type', mimeType);
+          formData.append('messaging_product', 'whatsapp');
+
+          console.log('[send-zapi-message] Uploading media to Meta:', { fileName, mimeType, size: binaryData.length });
+
+          const uploadResp = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/media`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+            body: formData,
+          });
+
+          const uploadResult = await uploadResp.json();
+          console.log('[send-zapi-message] Meta upload result:', uploadResult);
+
+          if (!uploadResult.id) {
+            console.error('[send-zapi-message] Meta media upload failed:', uploadResult);
+            return new Response(
+              JSON.stringify({ success: false, error: uploadResult.error?.message || 'Media upload failed' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          metaMediaId = uploadResult.id;
+
+          // Salvar no Supabase Storage também (para exibir na plataforma)
+          const filePath = `meta-outbound/${fileName}`;
+          await supabase.storage
+            .from('whatsapp-media')
+            .upload(filePath, binaryData, {
+              contentType: mimeType,
+              upsert: true,
+            });
+        }
+
+        // Montar payload para enviar mensagem com media_id
         const mediaTypeMap: Record<string, string> = {
           audio: 'audio',
           image: 'image',
@@ -204,9 +230,9 @@ Deno.serve(async (req) => {
         };
 
         const metaMediaType = mediaTypeMap[body.messageType] || 'document';
-        const mediaPayload: any = {
-          link: mediaPublicUrl,
-        };
+        const mediaPayload: any = metaMediaId 
+          ? { id: metaMediaId }
+          : { link: body.mediaUrl };
 
         if (body.messageType === 'document' && body.fileName) {
           mediaPayload.filename = body.fileName;
