@@ -59,9 +59,9 @@ interface ApiCredential {
 const PROVIDERS = [
   { value: "openai", label: "OpenAI", icon: Brain, color: "text-green-500" },
   { value: "anthropic", label: "Anthropic (Claude)", icon: Brain, color: "text-orange-500" },
-  { value: "meta", label: "Meta Ads", icon: BarChart3, color: "text-blue-500" },
+  { value: "meta", label: "Meta (WhatsApp + Ads)", icon: BarChart3, color: "text-blue-500" },
   { value: "google", label: "Google Ads", icon: BarChart3, color: "text-red-500" },
-  { value: "evolution", label: "Evolution API", icon: MessageSquare, color: "text-emerald-500" },
+  { value: "zapi", label: "Z-API (WhatsApp)", icon: MessageSquare, color: "text-emerald-500" },
   { value: "hubspot", label: "HubSpot", icon: Database, color: "text-orange-500" },
   { value: "webhook", label: "Webhook Externo", icon: Webhook, color: "text-purple-500" },
 ];
@@ -81,9 +81,10 @@ const CREDENTIAL_TYPES: Record<string, { value: string; label: string }[]> = {
     { value: "refresh_token", label: "Refresh Token" },
     { value: "customer_id", label: "Customer ID" },
   ],
-  evolution: [
-    { value: "api_key", label: "API Key" },
-    { value: "api_url", label: "URL da API" },
+  zapi: [
+    { value: "instance_id", label: "Instance ID" },
+    { value: "token", label: "Instance Token" },
+    { value: "client_token", label: "Client Token (Security)" },
   ],
   hubspot: [{ value: "api_key", label: "Private App Token" }],
   webhook: [
@@ -97,8 +98,8 @@ export function ApiKeysTab() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showValues, setShowValues] = useState<Record<string, boolean>>({});
 
-  // Fetch credentials
-  const { data: credentials = [], isLoading } = useQuery({
+  // Fetch credentials from api_credentials table
+  const { data: apiCredentials = [], isLoading: loadingApiCreds } = useQuery({
     queryKey: ["api_credentials"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -109,6 +110,46 @@ export function ApiKeysTab() {
       return data as ApiCredential[];
     },
   });
+
+  // Fetch Z-API credentials from whatsapp_instances
+  const { data: zapiInstances = [], isLoading: loadingZapi } = useQuery({
+    queryKey: ["whatsapp_instances_zapi"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("whatsapp_instances")
+        .select("*")
+        .eq("provider", "zapi")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Combine all credentials
+  const credentials: ApiCredential[] = [
+    ...apiCredentials,
+    // Converter instâncias Z-API para formato de credenciais
+    ...zapiInstances
+      .filter((inst: any) => inst.zapi_instance_id)
+      .map((inst: any) => ({
+        id: `zapi-${inst.id}`,
+        provider: "zapi",
+        credential_type: "instance",
+        label: inst.nome,
+        is_valid: inst.is_connected,
+        last_validated_at: inst.updated_at,
+        validation_error: null,
+        metadata: {
+          instance_id: inst.zapi_instance_id,
+          token: inst.zapi_token,
+          client_token: inst.zapi_client_token,
+          phone_number: inst.phone_number,
+        },
+        created_at: inst.created_at,
+      })),
+  ];
+
+  const isLoading = loadingApiCreds || loadingZapi;
 
   // Fetch system health
   const { data: healthData = [] } = useQuery({
@@ -165,6 +206,20 @@ export function ApiKeysTab() {
   };
 
   const getHealthStatus = (provider: string) => {
+    // Para Z-API, verificar se tem instâncias conectadas
+    if (provider === "zapi") {
+      const zapiCreds = credentials.filter((c) => c.provider === "zapi");
+      if (zapiCreds.length === 0) return "unknown";
+      const connectedCount = zapiCreds.filter((c) => c.is_valid).length;
+      if (connectedCount === zapiCreds.length) return "healthy";
+      if (connectedCount > 0) return "degraded";
+      return "down";
+    }
+    // Para Meta, verificar credenciais
+    if (provider === "meta") {
+      const metaCreds = credentials.filter((c) => c.provider === "meta" && c.is_valid);
+      return metaCreds.length > 0 ? "healthy" : "unknown";
+    }
     const health = healthData.find((h) => h.component === provider + "_api" || h.component === provider);
     return health?.status || "unknown";
   };
@@ -291,9 +346,9 @@ export function ApiKeysTab() {
                     {provider.credentials.map((cred) => (
                       <div
                         key={cred.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        className="p-3 rounded-lg bg-muted/50 space-y-2"
                       >
-                        <div className="flex-1">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm">{cred.label || cred.credential_type}</span>
                             {cred.is_valid ? (
@@ -301,13 +356,79 @@ export function ApiKeysTab() {
                             ) : (
                               <XCircle className="h-4 w-4 text-red-500" />
                             )}
+                            {cred.metadata?.phone_number && (
+                              <span className="text-xs text-muted-foreground">
+                                {cred.metadata.phone_number}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <code className="text-xs bg-muted px-2 py-0.5 rounded">
+                          <div className="flex items-center gap-1">
+                            {!cred.id.startsWith("zapi-") && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => validateMutation.mutate(cred.id)}
+                                  disabled={validateMutation.isPending}
+                                >
+                                  <RefreshCw
+                                    className={`h-4 w-4 ${validateMutation.isPending ? "animate-spin" : ""}`}
+                                  />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteMutation.mutate(cred.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Mostrar detalhes da credencial */}
+                        {cred.provider === "zapi" && cred.metadata && (
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground block">Instance ID</span>
+                              <code className="bg-muted px-1 py-0.5 rounded">
+                                {cred.metadata.instance_id?.slice(0, 8)}...
+                              </code>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground block">Token</span>
+                              <code className="bg-muted px-1 py-0.5 rounded">
+                                {cred.metadata.token ? "••••••••" : "Não configurado"}
+                              </code>
+                            </div>
+                          </div>
+                        )}
+
+                        {cred.provider === "meta" && cred.metadata && (
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground block">Phone Number ID</span>
+                              <code className="bg-muted px-1 py-0.5 rounded">
+                                {cred.metadata.phone_number_id || "N/A"}
+                              </code>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground block">WABA ID</span>
+                              <code className="bg-muted px-1 py-0.5 rounded">
+                                {cred.metadata.waba_id || "N/A"}
+                              </code>
+                            </div>
+                          </div>
+                        )}
+
+                        {cred.provider !== "zapi" && cred.provider !== "meta" && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <code className="bg-muted px-2 py-0.5 rounded">
                               {cred.credential_type}
                             </code>
                             {cred.last_validated_at && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-muted-foreground">
                                 Validado{" "}
                                 {formatDistanceToNow(new Date(cred.last_validated_at), {
                                   addSuffix: true,
@@ -316,29 +437,11 @@ export function ApiKeysTab() {
                               </span>
                             )}
                           </div>
-                          {cred.validation_error && (
-                            <p className="text-xs text-red-500 mt-1">{cred.validation_error}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => validateMutation.mutate(cred.id)}
-                            disabled={validateMutation.isPending}
-                          >
-                            <RefreshCw
-                              className={`h-4 w-4 ${validateMutation.isPending ? "animate-spin" : ""}`}
-                            />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteMutation.mutate(cred.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
+                        )}
+
+                        {cred.validation_error && (
+                          <p className="text-xs text-red-500">{cred.validation_error}</p>
+                        )}
                       </div>
                     ))}
                   </div>
