@@ -170,25 +170,35 @@ Deno.serve(async (req) => {
           const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
           
           // Determinar mime type correto
-          let mimeType = body.mediaMimetype || 'application/octet-stream';
+          // O AudioRecorder já grava em formato aceito pela Meta (mp4, ogg, mpeg)
+          // Não fazemos mais a gambiarra de renomear webm → ogg
+          let mimeType = body.mediaMimetype || 'audio/mp4';
           
-          // Meta aceita audio/ogg, audio/mp4, audio/mpeg para áudio
-          // Se for webm, vamos tentar enviar como ogg (mesma codificação opus)
-          if (mimeType.includes('webm')) {
-            mimeType = 'audio/ogg';
-          }
+          // Remover parâmetros extras do mime type para upload (ex: audio/ogg;codecs=opus → audio/ogg)
+          const cleanMimeType = mimeType.split(';')[0].trim();
 
-          const ext = mimeType.split('/')[1]?.split(';')[0] || 'bin';
+          const extMap: Record<string, string> = {
+            'audio/mp4': 'm4a',
+            'audio/ogg': 'ogg',
+            'audio/mpeg': 'mp3',
+            'audio/aac': 'aac',
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+            'video/mp4': 'mp4',
+            'application/pdf': 'pdf',
+          };
+          const ext = extMap[cleanMimeType] || cleanMimeType.split('/')[1] || 'bin';
           const fileName = body.fileName || `${body.messageType}_${Date.now()}.${ext}`;
 
           // Criar FormData para upload
           const formData = new FormData();
-          const blob = new Blob([binaryData], { type: mimeType });
+          const blob = new Blob([binaryData], { type: cleanMimeType });
           formData.append('file', blob, fileName);
-          formData.append('type', mimeType);
+          formData.append('type', cleanMimeType);
           formData.append('messaging_product', 'whatsapp');
 
-          console.log('[send-zapi-message] Uploading media to Meta:', { fileName, mimeType, size: binaryData.length });
+          console.log('[send-zapi-message] Uploading media to Meta:', { fileName, mimeType: cleanMimeType, size: binaryData.length });
 
           const uploadResp = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/media`, {
             method: 'POST',
@@ -216,7 +226,7 @@ Deno.serve(async (req) => {
           await supabase.storage
             .from('whatsapp-media')
             .upload(filePath, binaryData, {
-              contentType: mimeType,
+              contentType: cleanMimeType,
               upsert: true,
             });
         }

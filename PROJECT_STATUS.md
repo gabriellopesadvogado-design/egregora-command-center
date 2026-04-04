@@ -174,8 +174,8 @@ Números de teste atuais:
 ## 📝 Pendências
 
 ### Críticas (para funcionar 100%)
-- [ ] Template `primeiro_contato` ser aprovado no Meta
-- [ ] Cadastrar template aprovado na tabela `whatsapp_templates`
+- [x] Template `primeiro_contato` aprovado no Meta ✅
+- [x] Template testado e funcionando ✅
 - [ ] Criar instância Z-API para SDR Júnior
 
 ### Melhorias
