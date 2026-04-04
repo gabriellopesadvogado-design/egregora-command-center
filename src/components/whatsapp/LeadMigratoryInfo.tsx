@@ -45,6 +45,7 @@ interface MigratoryData {
   pais_lingua_portuguesa: boolean;
   possui_certificado_portugues: boolean;
   score_qualificacao: number;
+  campanha: string | null;
 }
 
 const SERVICO_OPTIONS = [
@@ -57,6 +58,18 @@ const RNM_OPTIONS = [
   { value: "temporario", label: "RNM Temporário" },
   { value: "indeterminado", label: "RNM Indeterminado" },
   { value: "nao_possui", label: "Não Possui RNM" },
+];
+
+const CAMPANHA_OPTIONS = [
+  { value: "Meta_Leadads_Principal", label: "Meta - Leadads Principal" },
+  { value: "Meta_Escala", label: "Meta - Campanha Escala" },
+  { value: "Meta_Nova_Leads", label: "Meta - Nova Leads" },
+  { value: "Google_Search", label: "Google - Search" },
+  { value: "Google_Display", label: "Google - Display" },
+  { value: "Organico_Site", label: "Orgânico - Site" },
+  { value: "Organico_Instagram", label: "Orgânico - Instagram" },
+  { value: "Indicacao", label: "Indicação" },
+  { value: "Outro", label: "Outro" },
 ];
 
 const PAISES_LINGUA_PORTUGUESA = [
@@ -89,6 +102,7 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
     pais_lingua_portuguesa: false,
     possui_certificado_portugues: false,
     score_qualificacao: 0,
+    campanha: null,
   });
   const queryClient = useQueryClient();
 
@@ -99,7 +113,7 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
       if (!leadId) return null;
       const { data, error } = await supabase
         .from("crm_leads")
-        .select("pais_nascimento, nacionalidade, tempo_residencia_brasil_anos, data_entrada_brasil, servico_interesse, rnm_data_emissao, rnm_data_vencimento, rnm_classificacao, casado_conjuge_brasileiro, possui_filhos_brasileiros, possui_pais_brasileiros, pais_lingua_portuguesa, possui_certificado_portugues, score_qualificacao")
+        .select("pais_nascimento, nacionalidade, tempo_residencia_brasil_anos, data_entrada_brasil, servico_interesse, rnm_data_emissao, rnm_data_vencimento, rnm_classificacao, casado_conjuge_brasileiro, possui_filhos_brasileiros, possui_pais_brasileiros, pais_lingua_portuguesa, possui_certificado_portugues, score_qualificacao, campanha")
         .eq("id", leadId)
         .single();
       if (error) throw error;
@@ -125,6 +139,7 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
         pais_lingua_portuguesa: leadData.pais_lingua_portuguesa || false,
         possui_certificado_portugues: leadData.possui_certificado_portugues || false,
         score_qualificacao: leadData.score_qualificacao || 0,
+        campanha: leadData.campanha,
       });
     }
   }, [leadData]);
@@ -211,6 +226,33 @@ export function LeadMigratoryInfo({ leadId, contactId }: LeadMigratoryInfoProps)
 
         <CollapsibleContent>
           <CardContent className="space-y-4 pt-0">
+            {/* Campanha de Origem - IMPORTANTE PARA ATRIBUIÇÃO */}
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <Label className="text-xs text-blue-400 flex items-center gap-1 mb-2">
+                📊 Campanha de Origem (Atribuição)
+              </Label>
+              <Select
+                value={formData.campanha || ""}
+                onValueChange={(v) => setFormData({ ...formData, campanha: v })}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Selecione a campanha..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {CAMPANHA_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!formData.campanha && (
+                <p className="text-[10px] text-amber-400 mt-1">
+                  ⚠️ Sem campanha = não aparece no dashboard de tráfego
+                </p>
+              )}
+            </div>
+
             {/* Score de Qualificação */}
             {formData.score_qualificacao > 0 && (
               <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
