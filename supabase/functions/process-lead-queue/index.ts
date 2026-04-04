@@ -218,6 +218,21 @@ Deno.serve(async (req) => {
               })
               .eq('id', lead.id);
 
+            // Atualizar instance_id da conversa para a instância da API Oficial
+            const { data: metaInstance } = await supabase
+              .from('whatsapp_instances')
+              .select('id')
+              .eq('provider', 'meta')
+              .eq('is_active', true)
+              .single();
+
+            if (metaInstance && lead.contact_id) {
+              await supabase
+                .from('whatsapp_conversations')
+                .update({ instance_id: metaInstance.id })
+                .eq('contact_id', lead.contact_id);
+            }
+
             await supabase.from('lead_automation_log').insert({
               queue_id: lead.id,
               action: 'template_sent',
