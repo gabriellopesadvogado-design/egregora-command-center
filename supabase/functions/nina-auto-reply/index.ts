@@ -158,8 +158,49 @@ serve(async (req) => {
 
       console.log(`[nina-auto-reply] Nina resposta: ${ninaReply.substring(0, 100)}...`);
 
-      // Verificar se tem comando de áudio
-      const audioMatch = ninaReply.match(/\[ENVIAR_AUDIO:(\w+)\]/);
+      // Verificar se tem comando de áudio na resposta
+      let audioMatch = ninaReply.match(/\[ENVIAR_AUDIO:(\w+)\]/);
+      
+      // DETECÇÃO AUTOMÁTICA DE ÁUDIO baseada no contexto
+      // Se não temos o nome ainda no contexto, mas a resposta pergunta sobre país/nacionalidade,
+      // significa que acabamos de receber o nome → enviar áudio de apresentação
+      if (!audioMatch && !ninaContext.audio_apresentacao_enviado) {
+        const lastUserMsg = messages.find((m: any) => ["user", "human"].includes(m.message_from))?.content || "";
+        const perguntaNacionalidade = ninaReply.toLowerCase().includes("país") || 
+                                       ninaReply.toLowerCase().includes("nasceu") ||
+                                       ninaReply.toLowerCase().includes("nacionalidade");
+        
+        // Se a resposta pergunta sobre nacionalidade e ainda não enviamos o áudio de apresentação
+        if (perguntaNacionalidade && lastUserMsg.length > 2) {
+          console.log(`[nina-auto-reply] Detectado: transição para nacionalidade, enviando áudio de apresentação`);
+          audioMatch = ["[ENVIAR_AUDIO:apresentacao]", "apresentacao"];
+          
+          // Marcar que já enviamos
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ nina_context: { ...ninaContext, audio_apresentacao_enviado: true } })
+            .eq("id", conv.id);
+        }
+      }
+      
+      // Se pergunta sobre RNM e ainda não enviamos o áudio de RNM
+      if (!audioMatch && !ninaContext.audio_rnm_enviado) {
+        const perguntaRNM = ninaReply.toLowerCase().includes("rnm") || 
+                           ninaReply.toLowerCase().includes("rne") ||
+                           ninaReply.toLowerCase().includes("emissão") ||
+                           ninaReply.toLowerCase().includes("vencimento");
+        
+        if (perguntaRNM && ninaContext.estudo_brasil) {
+          console.log(`[nina-auto-reply] Detectado: pedindo RNM, enviando áudio de rnm_request`);
+          audioMatch = ["[ENVIAR_AUDIO:rnm_request]", "rnm_request"];
+          
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ nina_context: { ...ninaContext, audio_rnm_enviado: true } })
+            .eq("id", conv.id);
+        }
+      }
+      
       const cleanReply = ninaReply.replace(/\[ENVIAR_AUDIO:\w+\]/g, "").trim();
 
       // Enviar mensagem de texto via Meta API
