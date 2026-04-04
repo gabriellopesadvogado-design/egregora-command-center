@@ -12,6 +12,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useMetaConnection } from "@/hooks/useMetaConnection";
+import { CampaignMappingSettings } from "@/components/settings/CampaignMappingSettings";
 
 export function TrafegoTab() {
   const { isConnecting, connectedAccount, startOAuth, disconnect } = useMetaConnection();
@@ -81,6 +82,9 @@ export function TrafegoTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Mapeamento de Campanhas */}
+      {connectedAccount && <CampaignMappingSettings />}
 
       {/* Google Ads */}
       <Card>

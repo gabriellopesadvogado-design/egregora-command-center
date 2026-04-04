@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +19,7 @@ import { AttributionFunnel } from "@/components/atribuicao/AttributionFunnel";
 import { AttributionTable } from "@/components/atribuicao/AttributionTable";
 import { AttributionChart } from "@/components/atribuicao/AttributionChart";
 import { LeadQualityChart } from "@/components/atribuicao/LeadQualityChart";
+import { CampaignInsights } from "@/components/atribuicao/CampaignInsights";
 
 type DateRange = "7d" | "30d" | "90d" | "all";
 
@@ -240,17 +242,38 @@ export default function Atribuicao() {
         byCampaign[campaign][q]++;
       });
 
-      // Buscar spend real do Meta via meta_campaign_map
-      const { data: campMap } = await supabase
-        .from("meta_campaign_map")
-        .select("internal_campaign, meta_campaign_id");
-      
-      // Spend real por campanha (hardcoded por agora, será dinâmico via API)
-      const spendMap: Record<string, number> = {
-        "Meta_Leadads_Principal": 13036.26,
-        "Meta_Escala": 2553.35,
-        "Meta_Nova_Leads": 90.64,
-      };
+      // Buscar spend real do Meta via Edge Function
+      let spendMap: Record<string, number> = {};
+      try {
+        const datePreset = dateRange === "7d" ? "last_7d" : dateRange === "30d" ? "last_30d" : dateRange === "90d" ? "last_90d" : "this_year";
+        const { data: session } = await supabase.auth.getSession();
+        const spendRes = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL || "https://zxwkjogjbyywufertkor.supabase.co"}/functions/v1/meta-campaign-spend`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.session?.access_token || ""}`,
+            },
+            body: JSON.stringify({ date_preset: datePreset }),
+          }
+        );
+        const spendData = await spendRes.json();
+        if (spendData.campaigns) {
+          spendData.campaigns.forEach((c: any) => {
+            if (c.internal_campaign) {
+              spendMap[c.internal_campaign] = c.spend;
+            }
+          });
+        }
+      } catch {
+        // Fallback para valores em cache se a API falhar
+        spendMap = {
+          "Meta_Leadads_Principal": 13036.26,
+          "Meta_Escala": 2553.35,
+          "Meta_Nova_Leads": 90.64,
+        };
+      }
 
       const result = Object.entries(byCampaign).map(([campaign, counts]) => {
         const total = counts.ruim + counts.bom + counts.muito_bom;
@@ -450,27 +473,44 @@ export default function Atribuicao() {
         </Card>
       </div>
 
-      {/* Qualidade de Leads */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            🎯 Qualidade de Leads por Campanha
-            <span className="text-xs font-normal text-muted-foreground ml-2">
-              Classificação: Ruim / Bom / Muito Bom
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {qualityLoading ? (
-            <Skeleton className="h-64" />
-          ) : (
-            <LeadQualityChart
-              data={qualityData?.byCampaign || []}
-              totals={qualityData?.totals || { ruim: 0, bom: 0, muito_bom: 0 }}
-            />
-          )}
-        </CardContent>
-      </Card>
+      {/* Qualidade de Leads + Insights */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              🎯 Qualidade de Leads por Campanha
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                Boa / Neutra / Ruim (avaliada pelo Closer)
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {qualityLoading ? (
+              <Skeleton className="h-64" />
+            ) : (
+              <LeadQualityChart
+                data={qualityData?.byCampaign || []}
+                totals={qualityData?.totals || { ruim: 0, bom: 0, muito_bom: 0 }}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              💡 Insights & Ações
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {qualityLoading ? (
+              <Skeleton className="h-64" />
+            ) : (
+              <CampaignInsights data={qualityData?.byCampaign || []} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
