@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
       const phone = contact.phone_number;
 
       let metaResponse: any;
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 
       if (body.messageType === 'text') {
         const resp = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
@@ -149,11 +150,88 @@ Deno.serve(async (req) => {
           }),
         });
         metaResponse = await resp.json();
+      } else if (['audio', 'image', 'video', 'document'].includes(body.messageType)) {
+        // Upload da mídia para Supabase Storage → URL pública → Meta API
+        let mediaPublicUrl = body.mediaUrl || '';
+
+        if (body.mediaBase64 && !mediaPublicUrl) {
+          // Fazer upload do base64 para Storage
+          const base64Data = body.mediaBase64.includes(',') 
+            ? body.mediaBase64.split(',')[1] 
+            : body.mediaBase64;
+          
+          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          const ext = body.mediaMimetype?.split('/')[1]?.split(';')[0] || 
+            (body.messageType === 'audio' ? 'ogg' : 
+             body.messageType === 'image' ? 'jpg' : 
+             body.messageType === 'video' ? 'mp4' : 'pdf');
+          
+          const fileName = body.fileName || `${body.messageType}_${Date.now()}.${ext}`;
+          const filePath = `meta-outbound/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('whatsapp-media')
+            .upload(filePath, binaryData, {
+              contentType: body.mediaMimetype || 'application/octet-stream',
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.error('[send-zapi-message] Upload error:', uploadError);
+            return new Response(
+              JSON.stringify({ success: false, error: 'Failed to upload media: ' + uploadError.message }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          mediaPublicUrl = `${supabaseUrl}/storage/v1/object/public/whatsapp-media/${filePath}`;
+          console.log('[send-zapi-message] Media uploaded to:', mediaPublicUrl);
+        }
+
+        if (!mediaPublicUrl) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'No media URL or base64 provided' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Montar payload para Meta API
+        const mediaTypeMap: Record<string, string> = {
+          audio: 'audio',
+          image: 'image',
+          video: 'video',
+          document: 'document',
+        };
+
+        const metaMediaType = mediaTypeMap[body.messageType] || 'document';
+        const mediaPayload: any = {
+          link: mediaPublicUrl,
+        };
+
+        if (body.messageType === 'document' && body.fileName) {
+          mediaPayload.filename = body.fileName;
+        }
+        if (body.content && body.messageType === 'image') {
+          mediaPayload.caption = body.content;
+        }
+
+        const resp = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: phone,
+            type: metaMediaType,
+            [metaMediaType]: mediaPayload,
+          }),
+        });
+        metaResponse = await resp.json();
       } else {
-        // Para mídia, enviar como URL ou base64 não é suportado diretamente
-        // Por hora retornar erro informativo
         return new Response(
-          JSON.stringify({ success: false, error: 'Media messages not yet supported for Meta API. Use text messages.' }),
+          JSON.stringify({ success: false, error: 'Unsupported message type' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
