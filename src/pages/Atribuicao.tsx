@@ -87,13 +87,15 @@ export default function Atribuicao() {
     queryFn: async (): Promise<AttributionMetrics> => {
       const dateFilter = getDateFilter();
       
-      let query = supabase.from("lead_attribution").select("*");
+      let query = supabase.from("lead_attribution_view").select("*");
       if (dateFilter) {
         query = query.gte("lead_created_at", dateFilter);
       }
       
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching attribution:", error);
+      }
 
       const leads = data || [];
       const qualified = leads.filter(l => l.qualified_at);
@@ -148,18 +150,20 @@ export default function Atribuicao() {
     queryFn: async (): Promise<CampaignAttribution[]> => {
       const dateFilter = getDateFilter();
       
-      let query = supabase.from("lead_attribution").select("*");
+      let query = supabase.from("lead_attribution_view").select("*");
       if (dateFilter) {
         query = query.gte("lead_created_at", dateFilter);
       }
       
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching campaigns:", error);
+      }
 
-      // Agrupar por campanha
+      // Agrupar por campanha (usar campo 'campaign' da VIEW)
       const byCampaign: Record<string, typeof data> = {};
       (data || []).forEach(lead => {
-        const campaign = lead.utm_campaign || lead.utm_source || "Direto";
+        const campaign = lead.campaign || lead.utm_campaign || lead.utm_source || "Sem campanha";
         if (!byCampaign[campaign]) byCampaign[campaign] = [];
         byCampaign[campaign].push(lead);
       });
