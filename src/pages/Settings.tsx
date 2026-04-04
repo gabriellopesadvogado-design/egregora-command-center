@@ -16,8 +16,10 @@ import { AgentsTab } from "@/components/settings/AgentsTab";
 import { AutomationsTab } from "@/components/settings/AutomationsTab";
 import { MonitoringTab } from "@/components/settings/MonitoringTab";
 
+// Updated WhatsApp tab
+import { WhatsAppSettingsTab } from "@/components/settings/WhatsAppSettingsTab";
+
 // Legacy tabs (keeping for now)
-import { WhatsAppTab } from "@/components/settings/legacy/WhatsAppTab";
 import { TrafegoTab } from "@/components/settings/legacy/TrafegoTab";
 import { NotificacoesTab } from "@/components/settings/legacy/NotificacoesTab";
 
@@ -82,9 +84,9 @@ export default function Settings() {
           <MonitoringTab />
         </TabsContent>
 
-        {/* Legacy Tabs */}
+        {/* WhatsApp Tab - Updated */}
         <TabsContent value="whatsapp" className="mt-6">
-          <WhatsAppTab />
+          <WhatsAppSettingsTab />
         </TabsContent>
 
         <TabsContent value="trafego" className="mt-6">
