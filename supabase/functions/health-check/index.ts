@@ -348,12 +348,11 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // Salvar resultados na tabela system_health
+    // Salvar resultados na tabela system_health (update por component)
     for (const result of results) {
       const { error } = await supabase
         .from('system_health')
-        .upsert({
-          component: result.component,
+        .update({
           status: result.status,
           status_message: result.status_message,
           latency_ms: result.latency_ms,
@@ -361,9 +360,8 @@ Deno.serve(async (req) => {
           last_error: result.last_error,
           last_error_at: result.last_error ? now : null,
           last_check_at: now,
-        }, {
-          onConflict: 'component',
-        });
+        })
+        .eq('component', result.component);
 
       if (error) {
         console.error(`[health-check] Error saving ${result.component}:`, error);
