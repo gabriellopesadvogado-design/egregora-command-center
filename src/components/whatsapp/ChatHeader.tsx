@@ -10,6 +10,7 @@ import { ChatHeaderMenu } from "./ChatHeaderMenu";
 import { QueueIndicator } from "@/components/conversations/QueueIndicator";
 import { AssignAgentDialog } from "@/components/conversations/AssignAgentDialog";
 import { EditContactModal } from "./EditContactModal";
+import { CadenceModal } from "./CadenceModal";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversationAssignment } from "@/hooks/whatsapp/useConversationAssignment";
@@ -33,6 +34,7 @@ export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, convers
   const { data: topicsData } = useConversationTopics(conversationId || null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isEditContactModalOpen, setIsEditContactModalOpen] = useState(false);
+  const [isCadenceModalOpen, setIsCadenceModalOpen] = useState(false);
   const { user, isAdmin, isSupervisor } = useAuth();
   const { assignConversation } = useConversationAssignment();
   
@@ -149,11 +151,14 @@ export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, convers
             <ChatHeaderMenu conversation={conversation} onRefresh={onRefresh} />
           )}
 
-          <Link to="/settings">
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCadenceModalOpen(true)}
+            title="Cadências automáticas"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -182,6 +187,16 @@ export const ChatHeader = ({ contact, sentiment, isAnalyzing, onAnalyze, convers
           if (onRefresh) onRefresh();
         }}
       />
+
+      {/* Cadence Modal */}
+      {conversationId && conversation?.instance_id && (
+        <CadenceModal
+          open={isCadenceModalOpen}
+          onOpenChange={setIsCadenceModalOpen}
+          conversationId={conversationId}
+          instanceId={conversation.instance_id}
+        />
+      )}
     </div>
   );
 };
