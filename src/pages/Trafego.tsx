@@ -151,7 +151,7 @@ export default function Trafego() {
       )}
 
       {/* AI Insights */}
-      <AIInsightsCard insights={[]} />
+      <AIInsightsCard />
     </div>
   );
 }
